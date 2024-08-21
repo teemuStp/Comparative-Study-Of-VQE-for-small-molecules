@@ -413,7 +413,7 @@ if __name__=='__main__':
             for molecule in molecules:
                 for ansatz in ansatzes:
                     print("Running VQE for molecule:", molecule, "| z2Symmetries:", z2sym, "| mapping:", map, "| ansatz:", ansatz)
-            
+
 
                     # create the problem hamiltonian
                     hamiltonian = prepare_hamiltonian(molecule_name=molecule, z2symmetry_reduction=z2sym, freeze_core=True, mapping=map)
@@ -425,31 +425,49 @@ if __name__=='__main__':
                     avg_pauli_weight = np.mean([pauli_weight(pauli) for pauli in hamiltonian.paulis])
                     avg_hardware_pauli_weight = np.mean([hardware_pauli_weight(pauli) for pauli in hamiltonian.paulis])
             
-            
+
+                    # For laptops, simulating more than 10 qubits becomes too cucumbersome so we create a limit
+                    small_system = (num_qubits <= 10)
+
+
                     # create the ansatz circuit
                     ansatz_circuit = build_ansatz(ansatz_name=ansatz, mapper=map, num_qubits=num_qubits, num_particles=2, reps=2)
 
             
-                    # perform the vqe calculation
-                    vqe_results = vqe(num_qubits,ansatz_circuit,hamiltonian)
-                    vqe_energies = vqe_results['cost_history']
-                    iterations = vqe_results['iters']
-                    parameters = vqe_results['vectors']
+                    # perform the vqe calculation for the given molecule if the system is small (<10 qubits)
+                    if(small_system):    
 
-            
-                    # calculate the exact energies with parameters from the vqe calculation 
-                    estimator = Estimator()
-                    exact_energies = []
-                    for i in range(len(parameters)):
-                        exact_energies.append(estimator.run(circuits=ansatz_circuit,observables=hamiltonian,parameter_values=parameters[i]).result().values[0])
-            
-            
-                    # calculate the exact minumun solution
-                    exact_solution = np.real(NumPyEigensolver(k=1).compute_eigenvalues(hamiltonian).eigenvalues[0])
 
-            
-                    # calculate the error of the vqe calculation
-                    error = [float(abs(exact_energies[i]-vqe_energies[i])) for i in range(len(vqe_energies))]
+                        # perform the VQE calculation
+                        vqe_results = vqe(num_qubits,ansatz_circuit,hamiltonian)
+                        vqe_energies = vqe_results['cost_history']
+                        iterations = vqe_results['iters']
+                        parameters = vqe_results['vectors']
+
+
+                        # calculate the exact energies for the given parameters
+                        estimator = Estimator()
+                        exact_energies = []
+                        for i in range(len(parameters)):
+                            exact_energies.append(estimator.run(circuits=ansatz_circuit,observables=hamiltonian,parameter_values=parameters[i]).result().values[0])
+
+
+                        # calculate the exact solution
+                        exact_solution = np.real(NumPyEigensolver(k=1).compute_eigenvalues(hamiltonian).eigenvalues[0])
+                        
+
+                        # calculate the error
+                        error = [float(abs(exact_energies[i]-vqe_energies[i])) for i in range(len(vqe_energies))]
+
+
+                    # if the system is too large, we do not perform the VQE calculation and return empty values
+                    else:
+                        vqe_energies = []
+                        iterations = 0
+                        parameters = []
+                        exact_energies = []
+                        exact_solution = 0.0
+                        error = []
 
             
                     # store the results in the DataFrame
