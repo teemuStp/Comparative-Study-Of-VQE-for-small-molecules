@@ -463,3 +463,4 @@ if __name__=='__main__':
     # save the results in a csv file
     print('All VQE calculations done. Saving the results to a file vqe_results.csv')
     data.to_csv('../results/vqe_results.csv',index=False)
+    print('Results saved successfully')
