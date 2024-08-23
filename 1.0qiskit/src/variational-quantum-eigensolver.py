@@ -57,7 +57,7 @@ from qiskit_nature.second_q.circuit.library import HartreeFock, UCCSD
 # All possible implementation methods
 all_mappers = ['parity','bravyi_kitaev', 'jordan_wigner']
 all_ansatzes = ['EfficientSU2','UCCSD']
-all_molecule_names = ['LiH', 'H2O','H2','He']
+all_molecule_names = ['LiH', 'H2O','H2']#,'He']
 all_Z2Symmetries_list = [True,False]
 all_measurement_schemes = ['pauli_scheme','QWC']
 
