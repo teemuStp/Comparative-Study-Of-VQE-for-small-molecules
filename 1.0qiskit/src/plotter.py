@@ -37,6 +37,7 @@ def reformat_dataframe(data):
                         # Create a name
                         abr_map = mapping_renamer(map)
                         name = mol +'-'+abr_map+'-'+ans+'-'+str(z2)+'-'+str(num_q)+'q'
+                        print(name)
 
 
 # [ansatz_circuit', 'hamiltonian','avg_pauli_weight','avg_hardware_pauli_weight','num_pauli_strings','num_qubits','vqe_energies','iterations','exact_energies','exact_solution','parameters','error'
