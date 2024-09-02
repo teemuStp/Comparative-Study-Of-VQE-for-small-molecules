@@ -50,6 +50,9 @@ from qiskit_nature.second_q.formats.molecule_info import MoleculeInfo
 from qiskit_nature.second_q.transformers import FreezeCoreTransformer
 from qiskit_nature.second_q.circuit.library import HartreeFock, UCCSD
 
+# Import the ternary tree mapper from self made neven_mapping.py
+# from neven_mapping import NevenMapper 
+
 
 #############    Define some constant methods   ############
 
@@ -103,6 +106,24 @@ chemistry_molecules = {
     "He": MoleculeInfo(
         symbols=["He"],
         coords=[(0.0,0.0,0.0)],
+        charge=0,
+        multiplicity=1,
+    ),
+    'C2H4': MoleculeInfo(
+        symbols=["C","C","H","H","H","H"],
+        coords=[(0.0,0.0,0.0),(1.0,0.0,0.0),(0.0,0.0,0.0),(0.0,0.0,0.0),(0.0,0.0,0.0),(0.0,0.0,0.0)],
+        charge=0,
+        multiplicity=1,
+    ),
+    'Cr2': MoleculeInfo(
+        symbols=["Cr","Cr"],
+        coords=[(0.0,0.0,0.0),(1.0,0.0,0.0)],
+        charge=0,
+        multiplicity=1,
+    ),
+    'O3': MoleculeInfo(
+        symbols=["O","O","O"],
+        coords=[(0.0,0.0,0.0),(1.0,0.0,0.0),(-1.0,0.0,0.0)],
         charge=0,
         multiplicity=1,
     ),
@@ -408,6 +429,7 @@ if __name__=='__main__':
 
 
     # Iterate over all different parameters and store the results in the DataFrame named data
+
     for map in mappers:
         for z2sym in Z2Symmetries_list:
             for molecule in molecules:
