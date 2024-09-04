@@ -60,10 +60,9 @@ from qiskit_nature.second_q.circuit.library import HartreeFock, UCCSD
 # All possible implementation methods
 all_mappers = ['parity','bravyi_kitaev', 'jordan_wigner']
 all_ansatzes = ['EfficientSU2','UCCSD']
-all_molecule_names = ['LiH', 'H2O','H2']#,'He']
 all_Z2Symmetries_list = [True,False]
 all_measurement_schemes = ['pauli_scheme','QWC']
-
+# Molecule list is below the chemistry_molecues dictionary
 
 # Default options
 default_measurement_scheme = ['pauli_scheme']
@@ -77,6 +76,8 @@ default_z2 = [True]
 
 # Create the chemistry molecules remove this later
 nh3 = 0.5
+# Molecules included in the study
+# H2, LiH, H2O, NH3, He, C2H4, Cr2, O3
 
 chemistry_molecules = {
     "H2": MoleculeInfo(
@@ -99,7 +100,12 @@ chemistry_molecules = {
     ),
     "NH3": MoleculeInfo(
         symbols=["N","H","H","H"],
-        coords=[(0.0,0.0,0.0),(0.0, 0.0, 0.0),(0.0, 0.0, 0.0),(0.0, 0.0, 0.0)],
+        coords=[
+        (0.0, 0.0, 0.1),     # Nitrogen
+        (0.94, 0.0, -0.27),  # First Hydrogen
+        (-0.47, 0.81, -0.27),# Second Hydrogen
+        (-0.47, -0.81, -0.27)# Third Hydrogen
+        ],
         charge=0,
         multiplicity=1,
     ),
@@ -111,7 +117,14 @@ chemistry_molecules = {
     ),
     'C2H4': MoleculeInfo(
         symbols=["C","C","H","H","H","H"],
-        coords=[(0.0,0.0,0.0),(1.0,0.0,0.0),(0.0,0.0,0.0),(0.0,0.0,0.0),(0.0,0.0,0.0),(0.0,0.0,0.0)],
+        coords=[
+        (0.0, 0.0, 0.0),    # First Carbon
+        (1.34, 0.0, 0.0),   # Second Carbon
+        (-0.67, 0.94, 0.0), # First Hydrogen
+        (-0.67, -0.94, 0.0),# Second Hydrogen
+        (2.01, 0.94, 0.0),  # Third Hydrogen
+        (2.01, -0.94, 0.0)  # Fourth Hydrogen
+        ],
         charge=0,
         multiplicity=1,
     ),
@@ -127,7 +140,15 @@ chemistry_molecules = {
         charge=0,
         multiplicity=1,
     ),
+    'O2': MoleculeInfo(
+        symbols=["O","O"],
+        coords=[(0.0,0.0,0.0),(1.0,0.0,0.0)],
+        charge=0,
+        multiplicity=1,
+    )
 }
+
+all_molecule_names = list(chemistry_molecules.keys())
 
 ################### Define the functions ####################
 
@@ -163,11 +184,11 @@ def prepare_hamiltonian(
     total_hamiltonian = driver.run()
     #total_hamiltonian = problem.hamiltonian.second_q_op()
     
-    total_number_of_orbitals = 6
+    #total_number_of_orbitals = 6
 
     # Apply the freeze core transformation
     transformer = FreezeCoreTransformer(freeze_core=freeze_core)
-    transformer.prepare_active_space(molecule,total_number_of_orbitals)
+    #transformer.prepare_active_space(molecule,total_number_of_orbitals)
     reduced_hamiltonian = transformer.transform(total_hamiltonian)
 
     # Convert the Hamiltonian to second quantized form
@@ -337,12 +358,13 @@ def command_line_parser(arguments):
         arguments[0]    
     except:
         print("Please provide the correct number of arguments \n")
-        print('run_type=all/default/custom mol1,mol2,mol3 map1,map2,map3 ansatz1,ansatz2,ansatz3 mes1,mes2,mes3 z2_symmetry=True,False')
+        print('run_type=all/default/custom VQE=Y/N mol1,mol2,mol3 map1,map2,map3 ansatz1,ansatz2,ansatz3 mes1,mes2,mes3 z2_symmetry=True,False')
         sys.exit()
 
         
 
     if arguments[0] == "all" or arguments[0] == "default":
+
 
         # Run all the possible combinations
         if arguments[0] == "all":
@@ -353,7 +375,9 @@ def command_line_parser(arguments):
             molecules = all_molecule_names
             measurement_schemes = all_measurement_schemes
             z2_symmetry = all_Z2Symmetries_list
+            VQE = 'Y'
     
+
         # Run the default methods
         else:
             print('Running the comparison of methods respect to default methods')
@@ -362,20 +386,23 @@ def command_line_parser(arguments):
             molecules = all_molecule_names
             measurement_schemes = default_measurement_scheme
             z2_symmetry = default_z2
+            VQE = 'Y'
+
 
     # create a check thst the arguments are correct
-    elif len(arguments) != 6: 
+    elif len(arguments) != 7: 
         print("Please provide the correct number of arguments")
         print('run_type=all/default/custom mol1,mol2,mol3 map1,map2,map3 ansatz1,ansatz2,ansatz3 mes1,mes2,mes3 z2_symmetry=True,False')
         sys.exit()
     else: 
         print('Running a custom set of arguments')
-        molecules = arguments[1].split(',')
-        mappings = arguments[2].split(',')
-        ansatzes = arguments[3].split(',')    
-        measurement_schemes = arguments[4].split(',')
+        VQE = arguments[1]
+        molecules = arguments[2].split(',')
+        mappings = arguments[3].split(',')
+        ansatzes = arguments[4].split(',')    
+        measurement_schemes = arguments[5].split(',')
         # map the z2_symmetry to a boolean
-        z2_s = arguments[5].split(',') 
+        z2_s = arguments[6].split(',') 
         z2_symmetry=[]
         for z in z2_s:
             if z == 'True':
@@ -383,6 +410,15 @@ def command_line_parser(arguments):
             elif z == 'False':
                 z = False
             z2_symmetry.append(z)
+
+        # print all the methods
+        print('VQE:',VQE)
+        print('Molecules:',molecules)
+        print('Mappings:',mappings)
+        print('Ansatzes:',ansatzes)
+        print('Measurement schemes:',measurement_schemes)
+        print('Z2 Symmetry:',z2_symmetry)
+
 
     
         # checke that the arguments can be foun from list that conatin all different methods
@@ -403,7 +439,7 @@ def command_line_parser(arguments):
             sys.exit()
 
         print('All arguments correct!')
-    return molecules, mappings, ansatzes, measurement_schemes, z2_symmetry
+    return VQE,molecules, mappings, ansatzes, measurement_schemes, z2_symmetry
   
 
 ############################################################
@@ -417,11 +453,11 @@ if __name__=='__main__':
         arguments  = sys.argv[1:]
     except:
         print('Please provide the correct number of arguments')
-        print('run_type=all/default/custom mol1,mol2,mol3 map1,map2,map3 ansatz1,ansatz2,ansatz3 mes1,mes2,mes3 z2_symmetry=True,False')
+        print('run_type=all/default/custom VQE=Y/N mol1,mol2,mol3 map1,map2,map3 ansatz1,ansatz2,ansatz3 mes1,mes2,mes3 z2_symmetry=True,False')
         sys.exit()
     
     # parse the command line arguments
-    molecules, mappers, ansatzes, measurement_schemes, Z2Symmetries_list = command_line_parser(arguments)
+    VQE,molecules, mappers, ansatzes, measurement_schemes, Z2Symmetries_list = command_line_parser(arguments)
     
 
     # Create a pandas DataFrame to store the Hamiltonians
@@ -449,15 +485,15 @@ if __name__=='__main__':
             
 
                     # For laptops, simulating more than 10 qubits becomes too cucumbersome so we create a limit
-                    small_system = (num_qubits <= 10)
-
-
-                    # create the ansatz circuit
-                    ansatz_circuit = build_ansatz(ansatz_name=ansatz, mapper=map, num_qubits=num_qubits, num_particles=2, reps=2)
+                    run_vqe = (VQE=='Y')
 
             
                     # perform the vqe calculation for the given molecule if the system is small (<10 qubits)
-                    if(small_system):    
+                    if(run_vqe):    
+
+
+                        # create the ansatz circuit
+                        ansatz_circuit = build_ansatz(ansatz_name=ansatz, mapper=map, num_qubits=num_qubits, num_particles=2, reps=2)
 
 
                         # perform the VQE calculation
@@ -490,13 +526,14 @@ if __name__=='__main__':
                         exact_energies = []
                         exact_solution = 0.0
                         error = []
+                        ansatz_circuit = None
 
             
                     # store the results in the DataFrame
                     new_row = {'molecule':molecule, 'z2Symmetries': str(z2sym),'mapping':map, 'ansatz':ansatz,'ansatz_circuit':ansatz_circuit,
                                 'hamiltonian':hamiltonian, 'avg_pauli_weight':avg_pauli_weight, 'num_pauli_strings':num_pauli_strings,
-                                  'num_qubits':num_qubits, 'vqe_energies':vqe_energies,'iterations':iterations,'parameters':parameters,
-                                  'error':error,'exact_energies':exact_energies,'exact_solution':exact_solution,'avg_hardware_pauli_weight':avg_hardware_pauli_weight}
+                                'num_qubits':num_qubits, 'vqe_energies':vqe_energies,'iterations':iterations,'parameters':parameters,
+                                'error':error,'exact_energies':exact_energies,'exact_solution':exact_solution,'avg_hardware_pauli_weight':avg_hardware_pauli_weight}
                     data.loc[len(data)] = new_row
 
 
