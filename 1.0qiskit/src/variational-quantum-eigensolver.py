@@ -75,7 +75,6 @@ default_z2 = [True]
 
 
 # Create the chemistry molecules remove this later
-nh3 = 0.5
 # Molecules included in the study
 # H2, LiH, H2O, NH3, He, C2H4, Cr2, O3
 
