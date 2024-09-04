@@ -163,13 +163,25 @@ def prepare_hamiltonian(
           basis(str):  the basis set to use
     Returns: qubitOp(SparsePauliOp): the Hamiltonian as a (paulis=[],coeff=[])"""
 
+
     # Execute the PySCF driver
     molecule = chemistry_molecules[molecule_name]
     driver = PySCFDriver.from_molecule(molecule=molecule, basis=basis)
 
+
+    # Run the driver
+    total_hamiltonian = driver.run()
+
+
+    # Get the information about the problem
+    num_particles = total_hamiltonian.num_particles
+    num_spatial_orbitals = total_hamiltonian.num_ospatial_orbitals
+    active_orbitals = total_hamiltonian.orbital_energies
+
+
     if mapping == "parity":
         #qubit_mapping = FermionicQubitMappingType.PARITY
-        qubit_mapping = ParityMapper()
+        qubit_mapping = ParityMapper(num_particles=num_particles)
     elif mapping == "bravyi_kitaev":
         #qubit_mapping = FermionicQubitMappingType.BRAVYI_KITAEV
         qubit_mapping = BravyiKitaevMapper()
@@ -182,15 +194,6 @@ def prepare_hamiltonian(
         raise ValueError("Wrong mapping")
 
 
-    # Run the driver
-    total_hamiltonian = driver.run()
-
-
-    # Get the information about the problem
-    number_particles = total_hamiltonian.num_particles
-    num_spatial_orbitals = total_hamiltonian.num_ospatial_orbitals
-    active_orbitals = total_hamiltonian.orbital_energies
-
 
     # Apply the freeze core transformation
     transformer = FreezeCoreTransformer(freeze_core=freeze_core)
@@ -201,7 +204,7 @@ def prepare_hamiltonian(
     # Convert the Hamiltonian to second quantized form
     hamiltonian = reduced_hamiltonian.hamiltonian.second_q_op()
 
-    
+
     # Apply the given fermion to Pauli encoding
     qubitOp = QubitMapper.map(self=qubit_mapping,
         second_q_ops=hamiltonian
