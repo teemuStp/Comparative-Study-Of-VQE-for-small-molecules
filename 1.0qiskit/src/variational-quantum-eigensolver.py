@@ -180,18 +180,27 @@ def prepare_hamiltonian(
         qubit_mapping = JordanWignerMapper()
     else:
         raise ValueError("Wrong mapping")
+
+
+    # Run the driver
     total_hamiltonian = driver.run()
-    #total_hamiltonian = problem.hamiltonian.second_q_op()
-    
-    #total_number_of_orbitals = 6
+
+
+    # Get the information about the problem
+    number_particles = total_hamiltonian.num_particles
+    num_spatial_orbitals = total_hamiltonian.num_ospatial_orbitals
+    active_orbitals = total_hamiltonian.orbital_energies
+
 
     # Apply the freeze core transformation
     transformer = FreezeCoreTransformer(freeze_core=freeze_core)
     #transformer.prepare_active_space(molecule,total_number_of_orbitals)
     reduced_hamiltonian = transformer.transform(total_hamiltonian)
 
+
     # Convert the Hamiltonian to second quantized form
     hamiltonian = reduced_hamiltonian.hamiltonian.second_q_op()
+
     
     # Apply the given fermion to Pauli encoding
     qubitOp = QubitMapper.map(self=qubit_mapping,
