@@ -121,13 +121,69 @@ if __name__ == '__main__':
        'exact_energies', 'exact_solution', 'parameters', 'error']
     data = data.drop(columns=dropping)
 
+    mappings = ['parity', 'jordan_wigner', 'bravyi_kitaev', 'neven']
+
     # Numbers of qubits 
-    num_qubits = data['num_qubits']
-    pauli_weights = data['avg_pauli_weight']
-    hardware_pauli_weights = data['avg_hardware_pauli_weight']
+    for map in mappings:
+        print('\n'+map+'\n')
 
-    print(data[(data['molecule']=='H2O')])
+        # Filter the data
+        try:
+            map_data = data[data['mapping']==map]
+            num_qubits = map_data['num_qubits']
+            avg_pauli_weight = map_data['avg_pauli_weight']
+            avg_hardware_pauli_weight = map_data['avg_hardware_pauli_weight']
+            num_pauli_strings = map_data['num_pauli_strings']
 
+            # Calculate the scaling
+            plot_range = np.arange(2,(max(num_qubits)+4))
+
+            if map == 'parity':
+                scaling = PR_scaling(plot_range)
+                name = 'Parity'
+            elif map == 'jordan_wigner':
+                scaling = JW_scaling(plot_range)
+                name = 'Jordan-Wigner'
+            elif map == 'bravyi_kitaev':
+                scaling = BK_scaling(plot_range)
+                name = 'Bravyi-Kitaev'
+            elif map == 'neven':
+                scaling = OTT_scaling(plot_range)
+                name = 'Ternary Tree'
+
+
+            
+
+            # Create scatter plot, since avg_pauli_weight can have multiple values for the same x values
+            plt.plot(num_qubits, avg_pauli_weight, 'o', label='Average Pauli Weight')
+
+            #plt.plot(num_qubits, num_pauli_strings, 'o', label='Number of Pauli Strings')
+            plt.plot(plot_range, scaling, label=map+' scaling')
+            plt.legend()
+            plt.xlabel('Number of qubits')
+            plt.ylabel('Value')
+            plt.title(name+' scaling')
+            plt.grid('both',linestyle='--')
+            plt.savefig('../results/Pauli_weight_'+map+'.pdf', format='pdf', dpi=1000)
+            plt.show()
+
+            # Plot the hardware weight and pauli weight 
+            plt.plot(num_qubits, avg_hardware_pauli_weight, 'o', label='Rz based hadrware gates')
+            plt.plot(num_qubits, avg_pauli_weight, 'o', label='Ideal qubit gates')
+            plt.plot(plot_range, scaling, label='Theoretical scaling')
+            plt.legend()
+            plt.xlabel('Number of qubits')
+            plt.ylabel('Number of qubit operations')
+            plt.title(map+'scaling')
+            plt.grid('both',linestyle='--')
+            plt.savefig('../results/Hardware_Pauli_weight_'+map+'.pdf', format='pdf', dpi=1000)
+            plt.show()
+
+
+            
+        except:
+            # Jump to next mapping
+            continue
 
 
 
