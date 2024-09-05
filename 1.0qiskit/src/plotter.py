@@ -72,9 +72,9 @@ def BK_scaling(num_qubits):
 
         num_qubits = np.array(num_qubits)
 
-        return np.log2(num_qubits)
-
-
+        return np.log2(num_qubits+1)
+            #plt.plot(num_q
+            #plt.plot(num_qubits, num_pauli_strings, 'o', label='Number of Pauli Strings')
 def PR_scaling(num_qubits):
         
     """Calculates the scaling of the Parity mapping
@@ -134,6 +134,8 @@ if __name__ == '__main__':
             avg_pauli_weight = map_data['avg_pauli_weight']
             avg_hardware_pauli_weight = map_data['avg_hardware_pauli_weight']
             num_pauli_strings = map_data['num_pauli_strings']
+            max_pauli_weights = map_data['max_pauli_weight']
+            max_hrdwwr_pauli_weights = map_data['max_hrdwr_pauli_weight']
 
             # Calculate the scaling
             plot_range = np.arange(2,(max(num_qubits)+4))
@@ -152,20 +154,20 @@ if __name__ == '__main__':
                 name = 'Ternary Tree'
 
 
-            
+            format = 'png'
 
             # Create scatter plot, since avg_pauli_weight can have multiple values for the same x values
             plt.plot(num_qubits, avg_pauli_weight, 'o', label='Average Pauli Weight')
-
-            #plt.plot(num_qubits, num_pauli_strings, 'o', label='Number of Pauli Strings')
-            plt.plot(plot_range, scaling, label=map+' scaling')
+            plt.plot(num_qubits, max_pauli_weights, 'ko', label='Max Pauli Weights')
+            plt.plot(plot_range, scaling, label='Theoretical scaling')
             plt.legend()
             plt.xlabel('Number of qubits')
             plt.ylabel('Value')
-            plt.title(name+' scaling')
+            plt.title('Pauli weights for '+name+' mapping')
             plt.grid('both',linestyle='--')
-            plt.savefig('../results/Pauli_weight_'+map+'.pdf', format='pdf', dpi=1000)
+            plt.savefig('../results/Pauli_weight_'+map+'.'+format, format=format, dpi=1000)
             plt.show()
+
 
             # Plot the hardware weight and pauli weight 
             plt.plot(num_qubits, avg_hardware_pauli_weight, 'o', label='Rz based hadrware gates')
@@ -174,9 +176,9 @@ if __name__ == '__main__':
             plt.legend()
             plt.xlabel('Number of qubits')
             plt.ylabel('Number of qubit operations')
-            plt.title(map+'scaling')
+            plt.title('Number of gates to measure Pauli string'+name)
             plt.grid('both',linestyle='--')
-            plt.savefig('../results/Hardware_Pauli_weight_'+map+'.pdf', format='pdf', dpi=1000)
+            plt.savefig('../results/Hardware_Pauli_weight_'+map+'.'+format, format=format, dpi=1000)
             plt.show()
 
 

@@ -57,12 +57,17 @@ from qiskit_nature.second_q.circuit.library import HartreeFock, UCCSD
 #############    Define some constant methods   ############
 
 
+# Error message for the command line arguments
+arg_error_message = 'Please provide the correct number of arguments \n run_type=all/default/custom VQE=Y/N mol1,mol2,mol3 map1,map2,map3 ansatz1,ansatz2,ansatz3 mes1,mes2,mes3 z2_symmetry=True,False'
+
+
 # All possible implementation methods
 all_mappers = ['parity','bravyi_kitaev', 'jordan_wigner']
 all_ansatzes = ['EfficientSU2','UCCSD']
 all_Z2Symmetries_list = [True,False]
 all_measurement_schemes = ['pauli_scheme','QWC']
 # Molecule list is below the chemistry_molecues dictionary
+
 
 # Default options
 default_measurement_scheme = ['pauli_scheme']
@@ -72,7 +77,7 @@ default_z2 = [True]
 
 
 #############################################################
-
+c
 
 # Create the chemistry molecules remove this later
 # Molecules included in the study
@@ -231,7 +236,6 @@ def prepare_hamiltonian(
 
     return result
 
-
 def pauli_weight(pauli_string):
     """Caclulates the Pauli weight of a given Pauli string (NUmber of Pauyli operators in a string). This method calculates the theoretical value if circut can execute
         X, Y and Z in on operation.
@@ -379,8 +383,7 @@ def command_line_parser(arguments):
     try:
         arguments[0]    
     except:
-        print("Please provide the correct number of arguments \n")
-        print('run_type=all/default/custom VQE=Y/N mol1,mol2,mol3 map1,map2,map3 ansatz1,ansatz2,ansatz3 mes1,mes2,mes3 z2_symmetry=True,False')
+        print(arg_error_message)
         sys.exit()
 
         
@@ -413,8 +416,7 @@ def command_line_parser(arguments):
 
     # create a check thst the arguments are correct
     elif len(arguments) != 7: 
-        print("Please provide the correct number of arguments")
-        print('run_type=all/default/custom mol1,mol2,mol3 map1,map2,map3 ansatz1,ansatz2,ansatz3 mes1,mes2,mes3 z2_symmetry=True,False')
+        print(arg_error_message)
         sys.exit()
     else: 
         print('Running a custom set of arguments')
@@ -474,8 +476,7 @@ if __name__=='__main__':
     try:
         arguments  = sys.argv[1:]
     except:
-        print('Please provide the correct number of arguments')
-        print('run_type=all/default/custom VQE=Y/N mol1,mol2,mol3 map1,map2,map3 ansatz1,ansatz2,ansatz3 mes1,mes2,mes3 z2_symmetry=True,False')
+        print(arg_error_message)
         sys.exit()
     
     # parse the command line arguments
@@ -483,7 +484,7 @@ if __name__=='__main__':
     
 
     # Create a pandas DataFrame to store the Hamiltonians
-    data = pd.DataFrame(columns=['molecule','z2Symmetries', 'mapping', 'ansatz','ansatz_circuit', 'hamiltonian','avg_pauli_weight','avg_hardware_pauli_weight','num_pauli_strings','num_qubits','vqe_energies','iterations','exact_energies','exact_solution','parameters','error'])
+    data = pd.DataFrame(columns=['molecule','z2Symmetries', 'mapping', 'ansatz','ansatz_circuit', 'hamiltonian','avg_pauli_weight','max_pauli_weight','max_hrdwr_pauli_weight','avg_hardware_pauli_weight','num_pauli_strings','num_qubits','vqe_energies','iterations','exact_energies','exact_solution','parameters','error'])
 
 
     # Iterate over all different parameters and store the results in the DataFrame named data
@@ -502,7 +503,13 @@ if __name__=='__main__':
                     # retrieve and calculate some useful information
                     num_qubits = hamiltonian.num_qubits
                     num_pauli_strings = len(hamiltonian.paulis)
+                    
+                    pauli_weights = [pauli_weight(pauli) for pauli in hamiltonian.paulis]
+                    max_pauli_weight = np.max([pauli_weight(pauli) for pauli in hamiltonian.paulis])
                     avg_pauli_weight = np.mean([pauli_weight(pauli) for pauli in hamiltonian.paulis])
+                    
+                    hardware_pauli_weights = [hardware_pauli_weight(pauli) for pauli in hamiltonian.paulis]
+                    max_hardware_pauli_weight = np.max([hardware_pauli_weight(pauli) for pauli in hamiltonian.paulis])
                     avg_hardware_pauli_weight = np.mean([hardware_pauli_weight(pauli) for pauli in hamiltonian.paulis])
             
 
@@ -561,7 +568,7 @@ if __name__=='__main__':
                     new_row = {'molecule':molecule, 'z2Symmetries': str(z2sym),'mapping':map, 'ansatz':ansatz,'ansatz_circuit':ansatz_circuit,
                                 'hamiltonian':hamiltonian, 'avg_pauli_weight':avg_pauli_weight, 'num_pauli_strings':num_pauli_strings,
                                 'num_qubits':num_qubits, 'vqe_energies':vqe_energies,'iterations':iterations,'parameters':parameters,
-                                'error':error,'exact_energies':exact_energies,'exact_solution':exact_solution,'avg_hardware_pauli_weight':avg_hardware_pauli_weight}
+                                'error':error,'exact_energies':exact_energies,'exact_solution':exact_solution,'avg_hardware_pauli_weight':avg_hardware_pauli_weight,'max_pauli_weight':max_pauli_weight,'max_hrdwr_pauli_weight':max_hardware_pauli_weight}
                     data.loc[len(data)] = new_row
 
 
