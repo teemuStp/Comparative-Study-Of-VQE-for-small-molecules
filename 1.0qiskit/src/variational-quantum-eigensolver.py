@@ -212,17 +212,23 @@ def prepare_hamiltonian(
         second_q_ops=hamiltonian
         )
     
+
     # Apply Z2 symmetries (except for hydrogen)
     if molecule_name != 'H2':
         if z2symmetry_reduction:
             z2symmetries = Z2Symmetries.find_z2_symmetries(qubitOp)
             qubitOp = z2symmetries.taper(qubitOp)
-    
+
+
+    # Z2 symmetries need some specific handling
     if molecule_name == 'H2':
         result = qubitOp,num_spatial_orbitals,num_particles
-    else:
+    elif z2symmetry_reduction:
         result = qubitOp[0],num_spatial_orbitals,num_particles
-    
+    else:
+        result = qubitOp,num_spatial_orbitals,num_particles
+
+
     return result
 
 
@@ -557,6 +563,7 @@ if __name__=='__main__':
                                 'num_qubits':num_qubits, 'vqe_energies':vqe_energies,'iterations':iterations,'parameters':parameters,
                                 'error':error,'exact_energies':exact_energies,'exact_solution':exact_solution,'avg_hardware_pauli_weight':avg_hardware_pauli_weight}
                     data.loc[len(data)] = new_row
+
 
 
     # save the results in a csv file
