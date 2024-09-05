@@ -154,8 +154,11 @@ all_molecule_names = list(chemistry_molecules.keys())
 def prepare_hamiltonian(
     molecule_name, z2symmetry_reduction, mapping,freeze_core=True, basis='sto-3g'
 ):  
+    
+
     """Creates the Hamiltoanin for a molecule with given mapping 
     
+
     Args: molecule(MoleculeInfo object): the molecule to create the Hamiltonian for
           z2symmetry_reduction(bool): whether to reduce the Hamiltonian using Z2 symmetries
           mapping(str): the mapping to use
@@ -175,7 +178,7 @@ def prepare_hamiltonian(
 
     # Get the information about the problem
     num_particles = total_hamiltonian.num_particles
-    num_spatial_orbitals = total_hamiltonian.num_ospatial_orbitals
+    num_spatial_orbitals = total_hamiltonian.num_spatial_orbitals
     active_orbitals = total_hamiltonian.orbital_energies
 
 
@@ -192,7 +195,6 @@ def prepare_hamiltonian(
         qubit_mapping = JordanWignerMapper()
     else:
         raise ValueError("Wrong mapping")
-
 
 
     # Apply the freeze core transformation
@@ -217,9 +219,12 @@ def prepare_hamiltonian(
             qubitOp = z2symmetries.taper(qubitOp)
     
     if molecule_name == 'H2':
-        return qubitOp
+        result = qubitOp,num_spatial_orbitals,num_particles
     else:
-        return qubitOp[0]
+        result = qubitOp[0],num_spatial_orbitals,num_particles
+    
+    return result
+
 
 def pauli_weight(pauli_string):
     """Caclulates the Pauli weight of a given Pauli string (NUmber of Pauyli operators in a string). This method calculates the theoretical value if circut can execute
@@ -481,11 +486,11 @@ if __name__=='__main__':
         for z2sym in Z2Symmetries_list:
             for molecule in molecules:
                 for ansatz in ansatzes:
-                    print("Running VQE for molecule:", molecule, "| z2Symmetries:", z2sym, "| mapping:", map, "| ansatz:", ansatz)
+                    print("Preparing: molecule:", molecule, "| z2Symmetries:", z2sym, "| mapping:", map, "| ansatz:", ansatz)
 
 
                     # create the problem hamiltonian
-                    hamiltonian = prepare_hamiltonian(molecule_name=molecule, z2symmetry_reduction=z2sym, freeze_core=True, mapping=map)
+                    hamiltonian,num_spatial_orbitals,num_particles = prepare_hamiltonian(molecule_name=molecule, z2symmetry_reduction=z2sym, freeze_core=True, mapping=map)
             
 
                     # retrieve and calculate some useful information
@@ -498,13 +503,19 @@ if __name__=='__main__':
                     # For laptops, simulating more than 10 qubits becomes too cucumbersome so we create a limit
                     run_vqe = (VQE=='Y')
 
+
+                    print('Preparation done!')
+
             
                     # perform the vqe calculation for the given molecule if the system is small (<10 qubits)
                     if(run_vqe):    
 
 
+                        print('Running molecule:',molecule,'with',num_qubits,'qubits')
+
+
                         # create the ansatz circuit
-                        ansatz_circuit = build_ansatz(ansatz_name=ansatz, mapper=map, num_qubits=num_qubits, num_particles=2, reps=2)
+                        ansatz_circuit = build_ansatz(ansatz_name=ansatz, mapper=map, num_qubits=num_qubits, num_particles=num_particles, reps=2)
 
 
                         # perform the VQE calculation
@@ -549,6 +560,6 @@ if __name__=='__main__':
 
 
     # save the results in a csv file
-    print('All VQE calculations done. Saving the results to a file vqe_results.csv')
+    print('All calculations done. Saving the results to a file vqe_results.csv')
     data.to_csv('../results/vqe_results.csv',index=False)
     print('Results saved successfully')
