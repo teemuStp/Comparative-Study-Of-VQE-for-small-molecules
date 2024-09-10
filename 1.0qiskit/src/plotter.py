@@ -62,9 +62,10 @@ def JW_scaling(num_qubits):
         return np.array(num_qubits)
 
 
-def BK_scaling(num_qubits):
+def BK_scaling(num_qubits,a=0,b=1,c=1):
     
         """Calculates the scaling of the Bravyi-Kitaev mapping
+            O(log2(N)) = a +b*log2(c*num_qubits)
         
         Input: num_qubits (int) - the number of qubits
         
@@ -72,9 +73,8 @@ def BK_scaling(num_qubits):
 
         num_qubits = np.array(num_qubits)
 
-        return np.log2(num_qubits+1)
-            #plt.plot(num_q
-            #plt.plot(num_qubits, num_pauli_strings, 'o', label='Number of Pauli Strings')
+        return [float(a +b*np.log2(c*n)) for n in num_qubits]
+
 def PR_scaling(num_qubits):
         
     """Calculates the scaling of the Parity mapping

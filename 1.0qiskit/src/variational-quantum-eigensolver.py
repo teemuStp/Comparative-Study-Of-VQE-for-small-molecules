@@ -77,7 +77,6 @@ default_z2 = [True]
 
 
 #############################################################
-c
 
 # Create the chemistry molecules remove this later
 # Molecules included in the study
