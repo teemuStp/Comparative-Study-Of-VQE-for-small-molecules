@@ -61,12 +61,8 @@ def JW_scaling(num_qubits):
 
         return np.array(num_qubits)
 
-<<<<<<< HEAD
 
 def BK_scaling(num_qubits,a=0,b=1,c=1):
-=======
-def BK_scaling(num_qubits):
->>>>>>> 637a07945e09ac50940bcab98f3cbe38f2bf64d2
     
         """Calculates the scaling of the Bravyi-Kitaev mapping
             O(log2(N)) = a +b*log2(c*num_qubits)
@@ -77,13 +73,7 @@ def BK_scaling(num_qubits):
 
         num_qubits = np.array(num_qubits)
 
-<<<<<<< HEAD
         return [float(a +b*np.log2(c*n)) for n in num_qubits]
-=======
-        return np.log2(num_qubits+1)
-            #plt.plot(num_q
-            #plt.plot(num_qubits, num_pauli_strings, 'o', label='Number of Pauli Strings')
->>>>>>> 637a07945e09ac50940bcab98f3cbe38f2bf64d2
 
 def PR_scaling(num_qubits):
         
@@ -229,7 +219,7 @@ if __name__ == '__main__':
             try:
                 map_data = data[data['mapping']==map]
                 num_qubits = map_data['num_qubits']
-                 = map_data['avg_pauli_weight']
+                xxx = map_data['avg_pauli_weight']
                 avg_hardware_pauli_weight = map_data['avg_hardware_pauli_weight']
                 num_pauli_strings = map_data['num_pauli_strings']
                 max_pauli_weights = map_data['max_pauli_weight']
