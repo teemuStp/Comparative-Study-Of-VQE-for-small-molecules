@@ -215,16 +215,13 @@ def prepare_hamiltonian(
 
 
     if mapping == "parity":
-        #qubit_mapping = FermionicQubitMappingType.PARITY
         qubit_mapping = ParityMapper(num_particles=num_particles)
     elif mapping == "bravyi_kitaev":
-        #qubit_mapping = FermionicQubitMappingType.BRAVYI_KITAEV
         qubit_mapping = BravyiKitaevMapper()
     elif mapping == "neven":
         filename = molecule_name +'-neven-'+str(z2symmetry_reduction)+ '.txt'
-        qubit_mapping = retrieve_neven_mapper('../hamiltonians/'+filename)
+        return retrieve_neven_mapper('../hamiltonians/'+filename),num_spatial_orbitals,num_particles
     elif mapping == "jordan_wigner":
-        #qubit_mapping = FermionicQubitMappingType.JORDAN_WIGNER
         qubit_mapping = JordanWignerMapper()
     else:
         raise ValueError("Wrong mapping")
@@ -526,7 +523,7 @@ if __name__=='__main__':
 
                     # create the problem hamiltonian
                     hamiltonian,num_spatial_orbitals,num_particles = prepare_hamiltonian(molecule_name=molecule, z2symmetry_reduction=z2sym, freeze_core=True, mapping=map)
-                    print(hamiltonian)
+
 
                     # retrieve and calculate some useful information
                     num_qubits = hamiltonian.num_qubits
