@@ -131,12 +131,12 @@ chemistry_molecules = {
         charge=0,
         multiplicity=1,
     ),
-    'Cr2': MoleculeInfo(
-        symbols=["Cr","Cr"],
-        coords=[(0.0,0.0,0.0),(1.0,0.0,0.0)],
-        charge=0,
-        multiplicity=1,
-    ),
+    #'Cr2': MoleculeInfo(
+    #    symbols=["Cr","Cr"],
+    #    coords=[(0.0,0.0,0.0),(1.0,0.0,0.0)],
+    #    charge=0,
+    #    multiplicity=1,
+    #),
     'O3': MoleculeInfo(
         symbols=["O","O","O"],
         coords=[(0.0,0.0,0.0),(1.0,0.0,0.0),(-1.0,0.0,0.0)],
@@ -154,6 +154,34 @@ chemistry_molecules = {
 all_molecule_names = list(chemistry_molecules.keys())
 
 ################### Define the functions ####################
+
+
+def retrieve_neven_mapper(filename):
+    """Retrieve the Neven mapper from a file in ../hamiltoninas/name.txt
+
+    input: filename (str) - the name of the file containing the Neven mapping
+    
+    Return: SparsePauliOp - the Neven (Ternary tree) mapping"""
+
+    with open(filename,'r') as file:
+        lines = file.readlines()
+
+    paulis = []
+    coeffs = []
+   
+    for pauli in lines:
+        # The hamiltonian is formatted as 
+        # -float * String   i.e. -0.5 * ZZIXY
+        coeff = float(pauli.split('*')[0])
+        pauli_string = pauli.split('*')[1].strip()
+        
+        coeffs.append(coeff.strip(' '))
+        paulis.append(pauli_string.strip(' '))
+
+    hamiltonian = {'paulis':paulis,'coeffs':coeffs}
+
+    return hamiltonian
+
 
 def prepare_hamiltonian(
     molecule_name, z2symmetry_reduction, mapping,freeze_core=True, basis='sto-3g'
@@ -192,8 +220,9 @@ def prepare_hamiltonian(
     elif mapping == "bravyi_kitaev":
         #qubit_mapping = FermionicQubitMappingType.BRAVYI_KITAEV
         qubit_mapping = BravyiKitaevMapper()
-    #elif mapping == "neven":
-    #    qubit_mapping = FermionicQubitMappingType.NEVEN
+    elif mapping == "neven":
+        filename = molecule_name +'-neven-'+str(z2symmetry_reduction)+ '.txt'
+        qubit_mapping = retrieve_neven_mapper('../hamiltonians/'+filename)
     elif mapping == "jordan_wigner":
         #qubit_mapping = FermionicQubitMappingType.JORDAN_WIGNER
         qubit_mapping = JordanWignerMapper()
