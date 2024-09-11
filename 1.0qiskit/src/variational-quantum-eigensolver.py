@@ -17,7 +17,7 @@ import pandas as pd
 
 # Pre-defined ansatz circuit and operator class for Hamiltonian
 from qiskit.circuit.library import EfficientSU2
-from qiskit.quantum_info import Z2Symmetries
+from qiskit.quantum_info import Z2Symmetries,SparsePauliOp
 
 
 # SciPy minimizer routine
@@ -62,7 +62,7 @@ arg_error_message = 'Please provide the correct number of arguments \n run_type=
 
 
 # All possible implementation methods
-all_mappers = ['parity','bravyi_kitaev', 'jordan_wigner']
+all_mappers = ['parity','bravyi_kitaev', 'jordan_wigner','neven']
 all_ansatzes = ['EfficientSU2','UCCSD']
 all_Z2Symmetries_list = [True,False]
 all_measurement_schemes = ['pauli_scheme','QWC']
@@ -166,19 +166,19 @@ def retrieve_neven_mapper(filename):
     with open(filename,'r') as file:
         lines = file.readlines()
 
+   
     paulis = []
     coeffs = []
+   
    
     for pauli in lines:
         # The hamiltonian is formatted as 
         # -float * String   i.e. -0.5 * ZZIXY
-        coeff = float(pauli.split('*')[0])
-        pauli_string = pauli.split('*')[1].strip()
-        
-        coeffs.append(coeff.strip(' '))
-        paulis.append(pauli_string.strip(' '))
+        coeffs.append(float(pauli.split('*')[0].strip(' ')))
+        paulis.append(pauli.split('*')[1].strip())
 
-    hamiltonian = {'paulis':paulis,'coeffs':coeffs}
+
+    hamiltonian = SparsePauliOp(data=paulis,coeffs=coeffs)
 
     return hamiltonian
 
@@ -526,7 +526,7 @@ if __name__=='__main__':
 
                     # create the problem hamiltonian
                     hamiltonian,num_spatial_orbitals,num_particles = prepare_hamiltonian(molecule_name=molecule, z2symmetry_reduction=z2sym, freeze_core=True, mapping=map)
-            
+                    print(hamiltonian)
 
                     # retrieve and calculate some useful information
                     num_qubits = hamiltonian.num_qubits
