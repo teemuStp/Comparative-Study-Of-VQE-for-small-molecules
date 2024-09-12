@@ -13,6 +13,7 @@ import sys
 # General imports
 import numpy as np
 import pandas as pd
+import csv
 
 
 # Pre-defined ansatz circuit and operator class for Hamiltonian
@@ -181,7 +182,6 @@ def retrieve_neven_mapper(filename):
     hamiltonian = SparsePauliOp(data=paulis,coeffs=coeffs)
 
     return hamiltonian
-
 
 def prepare_hamiltonian(
     molecule_name, z2symmetry_reduction, mapping,freeze_core=True, basis='sto-3g'
@@ -506,11 +506,16 @@ if __name__=='__main__':
     
     # parse the command line arguments
     VQE,molecules, mappers, ansatzes, measurement_schemes, Z2Symmetries_list = command_line_parser(arguments)
-    
 
     # Create a pandas DataFrame to store the Hamiltonians
     data = pd.DataFrame(columns=['molecule','z2Symmetries', 'mapping', 'ansatz','ansatz_circuit', 'hamiltonian','avg_pauli_weight','max_pauli_weight','max_hrdwr_pauli_weight','avg_hardware_pauli_weight','num_pauli_strings','num_qubits','vqe_energies','iterations','exact_energies','exact_solution','parameters','error'])
 
+    # flush the vqe_results.csv file adn write the header
+
+    with open('../results/vqe_results.csv','w') as file:
+        writer = csv.writer(file)
+        writer.writerow(data.columns)
+        file.close()
 
     # Iterate over all different parameters and store the results in the DataFrame named data
 
@@ -527,6 +532,7 @@ if __name__=='__main__':
 
                     # retrieve and calculate some useful information
                     num_qubits = hamiltonian.num_qubits
+                    print(num_qubits)
                     num_pauli_strings = len(hamiltonian.paulis)
                     
                     pauli_weights = [pauli_weight(pauli) for pauli in hamiltonian.paulis]
@@ -594,11 +600,10 @@ if __name__=='__main__':
                                 'hamiltonian':hamiltonian, 'avg_pauli_weight':avg_pauli_weight, 'num_pauli_strings':num_pauli_strings,
                                 'num_qubits':num_qubits, 'vqe_energies':vqe_energies,'iterations':iterations,'parameters':parameters,
                                 'error':error,'exact_energies':exact_energies,'exact_solution':exact_solution,'avg_hardware_pauli_weight':avg_hardware_pauli_weight,'max_pauli_weight':max_pauli_weight,'max_hrdwr_pauli_weight':max_hardware_pauli_weight}
-                    data.loc[len(data)] = new_row
+                    
+                    # Write to csv
+                    with open('../results/vqe_results.csv','a') as file:
+                        writer = csv.writer(file)
+                        writer.writerow(new_row.values())
 
-
-
-    # save the results in a csv file
-    print('All calculations done. Saving the results to a file vqe_results.csv')
-    data.to_csv('../results/vqe_results.csv',index=False)
     print('Results saved successfully')

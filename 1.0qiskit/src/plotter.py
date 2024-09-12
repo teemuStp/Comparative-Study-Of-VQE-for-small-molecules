@@ -109,6 +109,8 @@ if __name__ == '__main__':
     # read in the data
     filename = 'vqe_results.csv'
     data = pd.read_csv('../results/'+filename)
+
+    print(data['num_qubits'])
     
     
     # Define the methods
