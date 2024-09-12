@@ -495,7 +495,8 @@ def command_line_parser(arguments):
 
 
 # Main function
-if __name__=='__main__':
+#if __name__=='__main__':
+if False:
 
     # read arguments from the commandline when executed  run_type=all/default_mapping/default_ansatz/default_Z2Symmetries/default_measurement_scheme molecules=all/H2...
     try:
@@ -607,3 +608,30 @@ if __name__=='__main__':
                         writer.writerow(new_row.values())
 
     print('Results saved successfully')
+
+if True:
+    # Create a four figure sublot for the results
+    fig, axs = plt.subplots(2, 2, figsize=(15, 15))
+    fig.suptitle('VQE results for different molecules')
+    axs = axs.ravel()
+    # Create fake data
+    x = np.linspace(0, 10, 100)
+    y = np.sin(x)
+    y2 = np.cos(x)
+
+    # Plot the data
+    axs[0].plot(x, y)
+    axs[1].plot(x, y2)
+    axs[2].plot(x, y+y2)
+    axs[3].plot(x, y-y2)
+
+    # Add titles
+    axs[0].set_title('Sine')
+    axs[1].set_title('Cosine')
+    axs[2].set_title('Sine + Cosine')
+    axs[3].set_title('Sine - Cosine')
+
+    # Show the plot
+    plt.show()
+    
+

@@ -106,6 +106,8 @@ def OTT_scaling(num_qubits):
 if __name__ == '__main__':
 
 
+    figsize = (15,10)
+
     # read in the data
     filename = 'vqe_results.csv'
     data = pd.read_csv('../results/'+filename)
@@ -117,6 +119,8 @@ if __name__ == '__main__':
     pauli_plots = input("Plot pauli results?: (y/n)")
     
     if(pauli_plots == 'y'):
+
+
         # reformat the data
         dropping = ['ansatz', 'ansatz_circuit',
             'hamiltonian','vqe_energies', 'iterations',
@@ -124,13 +128,22 @@ if __name__ == '__main__':
         data = data.drop(columns=dropping)
 
 
+        # Create a four figure sublot for the results
+        fig, axs = plt.subplots(2, 2, figsize=figsize)
+        fig.suptitle('Pauli weights for different mappings')
+        axs = axs.ravel()
+
+
+        format = 'png'
+
+
         # Plot the the Pauli properties
-        for map in mappings:
+        for ax,map in zip(axs.flat,mappings):
             print('\n'+map+'\n')
 
 
             # Filter the data
-            try:
+            if True:
                 map_data = data[data['mapping']==map]
                 num_qubits = map_data['num_qubits']
                 avg_pauli_weight = map_data['avg_pauli_weight']
@@ -139,7 +152,8 @@ if __name__ == '__main__':
                 max_pauli_weights = map_data['max_pauli_weight']
                 max_hrdwwr_pauli_weights = map_data['max_hrdwr_pauli_weight']
 
-                # Calculate the scaling
+
+                # Create the range for the scaling
                 plot_range = np.arange(2,(max(num_qubits)+4))
 
 
@@ -157,37 +171,43 @@ if __name__ == '__main__':
                     name = 'Ternary Tree'
 
 
-                format = 'png'
-
                 # Create scatter plot, since avg_pauli_weight can have multiple values for the same x values
-                plt.plot(num_qubits, avg_pauli_weight, 'o', label='Average Pauli Weight')
-                plt.plot(num_qubits, max_pauli_weights, 'ko', label='Max Pauli Weights')
-                plt.plot(plot_range, scaling, label='Theoretical scaling')
-                plt.legend()
-                plt.xlabel('Number of qubits')
-                plt.ylabel('Value')
-                plt.title('Pauli weights for '+name+' mapping')
-                plt.grid('both',linestyle='--')
-                plt.savefig('../results/Pauli_weight_'+map+'.'+format, format=format, dpi=1000)
-                plt.show()
+                ax.plot(num_qubits, avg_pauli_weight, 'o', label='Average Pauli Weight')
+                ax.plot(num_qubits, max_pauli_weights, 'ko', label='Max Pauli Weights')
+                ax.plot(plot_range, scaling, label='Scaling')
+                ax.set_xlabel('Number of qubits')
+                ax.set_ylabel('Weight')
+                # Set y range to 0 - max value
+                ax.set_ylim(0, 25)
+                
+                # Make the name bold
+                ax.set_title(name, fontweight='bold')
+                ax.grid(True, which='both', linestyle='--', color='grey')
+                
 
 
                 # Plot the hardware weight and pauli weight 
-                plt.plot(num_qubits, avg_hardware_pauli_weight, 'o', label='Rz based hadrware gates')
-                plt.plot(num_qubits, avg_pauli_weight, 'o', label='Ideal qubit gates')
-                plt.plot(plot_range, scaling, label='Theoretical scaling')
-                plt.legend()
-                plt.xlabel('Number of qubits')
-                plt.ylabel('Number of qubit operations')
-                plt.title('Number of gates to measure Pauli string'+name)
-                plt.grid('both',linestyle='--')
-                plt.savefig('../results/Hardware_Pauli_weight_'+map+'.'+format, format=format, dpi=1000)
-                plt.show()
+                #plt.plot(num_qubits, avg_hardware_pauli_weight, 'o', label='Rz based hadrware gates')
+                #plt.plot(num_qubits, avg_pauli_weight, 'o', label='Ideal qubit gates')
+                #plt.plot(plot_range, scaling, label='Theoretical scaling')
+                #plt.legend()
+                #plt.xlabel('Number of qubits')
+                #plt.ylabel('Number of qubit operations')
+                #plt.title('Number of gates to measure Pauli string'+name)
+                #plt.grid('both',linestyle='--')
+                #plt.savefig('../results/Hardware_Pauli_weight_'+map+'.'+format, format=format, dpi=1000)
+                #plt.show()
             
-            except:
+            #try:
+            #    print('moi')
+
+            #except:
                 # Jump to next mapping
-                print('No data or error occured for '+map+' mapping')
-                continue
+            #    print('No data or error occured for '+map+' mapping')
+            #    continue
+
+        plt.savefig('../results/Pauli_weights.'+format, format=format, bbox_inches = 'tight',dpi=1000)
+        plt.show()
 
 
     # Plot the VQE results
@@ -275,3 +295,41 @@ if __name__ == '__main__':
             except:
                 # Jump to next mapping
                 continue
+
+if False:
+    
+
+    # Generate data for the plot
+    x = np.linspace(0, 2 * np.pi, 100)
+    y = np.sin(x)
+
+
+    # Random scatter data
+    scatter_x = np.random.uniform(0, 2 * np.pi, 30)
+    scatter_y = np.sin(scatter_x) + np.random.normal(0, 0.1, 30)
+
+
+    # Create a 2x2 grid of subplots
+    fig, axs = plt.subplots(2, 2, figsize=(8, 8))
+
+    names = ['Parity', 'Jordan-Wigner', 'Bravyi-Kitaev', 'Neven']
+
+    # Iterate over all the axes and customize each plot
+    for ax,name in zip(axs.flat,names):
+        # Plot the continuous curve (sin(x))
+        ax.plot(x, y, label='Sin(x)')
+    
+        # Plot scattered data points
+        ax.scatter(scatter_x, scatter_y, color='red', label='Data points')
+    
+        # Set title and grid
+        ax.set_title(name)
+        ax.grid(True, which='both', linestyle='--', color='grey')
+
+
+    # Adjust layout
+    plt.tight_layout()
+
+
+    # Show the plot
+    plt.show()
