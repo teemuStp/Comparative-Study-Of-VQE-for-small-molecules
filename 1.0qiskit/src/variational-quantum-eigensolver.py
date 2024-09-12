@@ -508,7 +508,7 @@ if __name__=='__main__':
     VQE,molecules, mappers, ansatzes, measurement_schemes, Z2Symmetries_list = command_line_parser(arguments)
 
     # Create a pandas DataFrame to store the Hamiltonians
-    data = pd.DataFrame(columns=['molecule','z2Symmetries', 'mapping', 'ansatz','ansatz_circuit', 'hamiltonian','avg_pauli_weight','max_pauli_weight','max_hrdwr_pauli_weight','avg_hardware_pauli_weight','num_pauli_strings','num_qubits','vqe_energies','iterations','exact_energies','exact_solution','parameters','error'])
+    data = pd.DataFrame(columns=['molecule', 'z2Symmetries', 'mapping', 'ansatz', 'ansatz_circuit', 'hamiltonian', 'avg_pauli_weight', 'num_pauli_strings', 'num_qubits', 'vqe_energies', 'iterations', 'parameters', 'error', 'exact_energies', 'exact_solution', 'avg_hardware_pauli_weight', 'max_pauli_weight', 'max_hrdwr_pauli_weight'])
 
     # flush the vqe_results.csv file adn write the header
 
@@ -532,7 +532,7 @@ if __name__=='__main__':
 
                     # retrieve and calculate some useful information
                     num_qubits = hamiltonian.num_qubits
-                    print(num_qubits)
+                    print('Number of qubits: '+str(num_qubits))
                     num_pauli_strings = len(hamiltonian.paulis)
                     
                     pauli_weights = [pauli_weight(pauli) for pauli in hamiltonian.paulis]
@@ -548,7 +548,7 @@ if __name__=='__main__':
                     run_vqe = (VQE=='Y')
 
 
-                    print('Preparation done!')
+                    print('Preparation done!\n')
 
             
                     # perform the vqe calculation for the given molecule if the system is small (<10 qubits)
@@ -600,7 +600,7 @@ if __name__=='__main__':
                                 'hamiltonian':hamiltonian, 'avg_pauli_weight':avg_pauli_weight, 'num_pauli_strings':num_pauli_strings,
                                 'num_qubits':num_qubits, 'vqe_energies':vqe_energies,'iterations':iterations,'parameters':parameters,
                                 'error':error,'exact_energies':exact_energies,'exact_solution':exact_solution,'avg_hardware_pauli_weight':avg_hardware_pauli_weight,'max_pauli_weight':max_pauli_weight,'max_hrdwr_pauli_weight':max_hardware_pauli_weight}
-                    
+
                     # Write to csv
                     with open('../results/vqe_results.csv','a') as file:
                         writer = csv.writer(file)

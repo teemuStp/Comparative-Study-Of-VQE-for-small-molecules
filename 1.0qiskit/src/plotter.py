@@ -97,7 +97,7 @@ def OTT_scaling(num_qubits):
         
     num_qubits = np.array(num_qubits)
         
-    return math.log((2*num_qubits),3)
+    return [math.log((2*n),3) for n in num_qubits]
 
 
 ################### Main ###################
@@ -110,13 +110,11 @@ if __name__ == '__main__':
     filename = 'vqe_results.csv'
     data = pd.read_csv('../results/'+filename)
 
-    print(data['num_qubits'])
-    
     
     # Define the methods
     mappings = ['parity', 'jordan_wigner', 'bravyi_kitaev', 'neven']
     
-    pauli_plots = input("Plot pauli results?: (y/n) ")
+    pauli_plots = input("Plot pauli results?: (y/n)")
     
     if(pauli_plots == 'y'):
         # reformat the data
@@ -130,6 +128,7 @@ if __name__ == '__main__':
         for map in mappings:
             print('\n'+map+'\n')
 
+
             # Filter the data
             try:
                 map_data = data[data['mapping']==map]
@@ -142,6 +141,7 @@ if __name__ == '__main__':
 
                 # Calculate the scaling
                 plot_range = np.arange(2,(max(num_qubits)+4))
+
 
                 if map == 'parity':
                     scaling = PR_scaling(plot_range)
@@ -183,11 +183,10 @@ if __name__ == '__main__':
                 plt.grid('both',linestyle='--')
                 plt.savefig('../results/Hardware_Pauli_weight_'+map+'.'+format, format=format, dpi=1000)
                 plt.show()
-
-
             
             except:
                 # Jump to next mapping
+                print('No data or error occured for '+map+' mapping')
                 continue
 
 
