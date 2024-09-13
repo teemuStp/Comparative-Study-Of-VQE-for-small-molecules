@@ -1,13 +1,26 @@
 ################### Imports ###################
 
 
+# Ignore warnings
+import warnings
+warnings.filterwarnings("ignore")
+
+
 # General imports
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import math
 
-# moi
+
+# Import curve fitting from scipy
+from scipy.optimize import curve_fit
+
+
+# Sympy imports for printing
+from sympy import symbols, log
+from sympy.printing.latex import latex
+
 
 ################### Functions ###################
 
@@ -61,7 +74,6 @@ def JW_scaling(num_qubits):
 
         return np.array(num_qubits)
 
-
 def BK_scaling(num_qubits,a=0,b=1,c=1):
     
         """Calculates the scaling of the Bravyi-Kitaev mapping
@@ -87,7 +99,7 @@ def PR_scaling(num_qubits):
     
     return num_qubits
 
-def OTT_scaling(num_qubits):
+def OTT_scaling(num_qubits,a=0,b=1,c=1):
             
     """Calculates the scaling of the Parity mapping
                 
@@ -96,8 +108,9 @@ def OTT_scaling(num_qubits):
                 Output: scaling (int) - the scaling of the OTT mapping"""
         
     num_qubits = np.array(num_qubits)
+    args = c*2*num_qubits
         
-    return [math.log((2*n),3) for n in num_qubits]
+    return [a+b*np.log(arg)/np.log(3) for arg in args]
 
 
 ################### Main ###################
@@ -156,32 +169,57 @@ if __name__ == '__main__':
                 # Create the range for the scaling
                 plot_range = np.arange(2,(max(num_qubits)+4))
 
+                N = symbols('N')
 
                 if map == 'parity':
                     scaling = PR_scaling(plot_range)
                     name = 'Parity'
+                    scaling_name='O(N)'
                 elif map == 'jordan_wigner':
                     scaling = JW_scaling(plot_range)
                     name = 'Jordan-Wigner'
+                    scaling_name='O(N)'
                 elif map == 'bravyi_kitaev':
                     scaling = BK_scaling(plot_range)
                     name = 'Bravyi-Kitaev'
+                    scaling_name='log2(N)'
+
+                    init_guess = [1,1,1]
+                    params, covariance = curve_fit(BK_scaling,num_qubits,max_pauli_weights, p0=init_guess)
+                    a,b,c = params
+                    fitted_scaling = BK_scaling(plot_range,a,b,c)
+                    ax.plot(plot_range, fitted_scaling, label=f"{a:.2f}+{b:.2f}log2({c:.2f}N)")
+
+
                 elif map == 'neven':
                     scaling = OTT_scaling(plot_range)
                     name = 'Ternary Tree'
+                    scaling_name='O(log₃(2N))'
+                    init_guess = [1,1,1]
+                    params, covariance = curve_fit(OTT_scaling,num_qubits,max_pauli_weights, p0=init_guess)
+                    a,b,c = params
+                    fitted_scaling = OTT_scaling(plot_range,a,b,c)
+                    ax.plot(plot_range, fitted_scaling, label=f"{a:.2f}+{b:.2f}log3({2*c:.2f}N)")
+
+               
+
+                    
 
 
                 # Create scatter plot, since avg_pauli_weight can have multiple values for the same x values
                 ax.plot(num_qubits, avg_pauli_weight, 'o', label='Average Pauli Weight')
                 ax.plot(num_qubits, max_pauli_weights, 'ko', label='Max Pauli Weights')
-                ax.plot(plot_range, scaling, label='Scaling')
+                ax.plot(plot_range, scaling, label=scaling_name)
                 ax.set_xlabel('Number of qubits')
                 ax.set_ylabel('Weight')
-                # Set y range to 0 - max value
+                ax.legend(loc='upper left')
+       
+
                 ax.set_ylim(0, 25)
                 
-                # Make the name bold
-                ax.set_title(name, fontweight='bold')
+       
+                # Add the title and grid
+                ax.set_title(name)
                 ax.grid(True, which='both', linestyle='--', color='grey')
                 
 
@@ -205,7 +243,7 @@ if __name__ == '__main__':
                 # Jump to next mapping
             #    print('No data or error occured for '+map+' mapping')
             #    continue
-
+        plt.tight_layout()
         plt.savefig('../results/Pauli_weights.'+format, format=format, bbox_inches = 'tight',dpi=1000)
         plt.show()
 
