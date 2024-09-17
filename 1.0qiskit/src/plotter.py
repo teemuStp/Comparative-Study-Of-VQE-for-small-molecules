@@ -266,7 +266,7 @@ if __name__ == '__main__':
 
 
                 # Create scatter plot, since avg_pauli_weight can have multiple values for the same x values
-                ax.scatter(num_qubits, avg_pauli_weight, color=avg_data_col,linewidth=dot_size, label='Average Pauli Weight')
+                ax.scatter(num_qubits, avg_pauli_weight, color=avg_data_col,linewidth=dot_size, label='Average Pauli Weights')
                 ax.scatter(num_qubits, max_pauli_weights, color=max_data_col,linewidth=dot_size, label='Max Pauli Weights')
                 ax.plot(plot_range, scaling,color=theory_col, label=scaling_name)
                 ax.set_xlabel('Number of qubits')
