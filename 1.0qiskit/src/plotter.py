@@ -207,7 +207,7 @@ if __name__ == '__main__':
                 if map == 'parity':
                     scaling = PR_scaling(plot_range)
                     name = 'Parity'
-                    scaling_name='O(N)'
+                    scaling_name='N'
                     init_guess = [1]
                     PR_avg_a, covariance = curve_fit(PR_scaling,train_x,train_avg_y, p0=init_guess)
                     ax.plot(plot_range, PR_scaling(plot_range,PR_avg_a),color=fit_color,linestyle='--',label=f"{PR_avg_a[0]:.2f}N")
@@ -217,7 +217,7 @@ if __name__ == '__main__':
                 elif map == 'jordan_wigner':
                     scaling = JW_scaling(plot_range)
                     name = 'Jordan-Wigner'
-                    scaling_name='O(N)'
+                    scaling_name='N'
                     init_guess = [1]
                     JW_avg_a, covariance = curve_fit(JW_scaling,train_x,train_avg_y, p0=init_guess)
                     ax.plot(plot_range, JW_scaling(plot_range,JW_avg_a),color=fit_color,linestyle='--',label=f"{JW_avg_a[0]:.2f}N")
@@ -246,7 +246,7 @@ if __name__ == '__main__':
                 elif map == 'neven':
                     scaling = OTT_scaling(plot_range)
                     name = 'Ternary Tree'
-                    scaling_name='O(log₃(2N))'
+                    scaling_name='log₃(2N)'
                     init_guess = [1,1,1]
 
                     params, covariance = curve_fit(OTT_scaling,train_x,train_max_y, p0=init_guess)
