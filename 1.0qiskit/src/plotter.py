@@ -8,9 +8,12 @@ warnings.filterwarnings("ignore")
 
 # General imports
 import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
 import numpy as np
 import math
+import re
+import ast
 
 
 # Import curve fitting from scipy
@@ -20,6 +23,11 @@ from scipy.optimize import curve_fit
 # Sympy imports for printing
 from sympy import symbols, log
 from sympy.printing.latex import latex
+
+
+# import SparsePauliOP
+from qiskit.quantum_info import SparsePauliOp
+
 
 ################# Global variables ##############
 
@@ -146,9 +154,42 @@ def OTT_scaling(num_qubits,a=0,b=1,c=1):
         
     return [a+b*np.log(arg)/np.log(3) for arg in args]
 
+def pauli_weight(pauli_string):
+    """Caclulates the Pauli weight of a given Pauli string (NUmber of Pauyli operators in a string). This method calculates the theoretical value if circut can execute
+        X, Y and Z in on operation.
+        
+    Args:
+        pauli_string (str): Pauli string
+    Returns:
+            Pauli Weight (int)"""
+    weight = 0
+    for oper in str(pauli_string):
+        if oper == 'Z' or oper == 'X' or oper == 'Y':
+            weight += 1
+    return weight
+
+def extract_pauli_and_coeffs(s):
+    # Define a regular expression pattern to capture the Pauli strings and coefficients
+    pattern = r"SparsePauliOp\(\[(.*?)\],\s*coeffs=\[(.*?)\]\)"
+    
+    # Search for the pattern in the string
+    match = re.search(pattern, s, re.DOTALL)
+    
+    if match:
+        # Extract the two groups: pauli strings and coefficients
+        pauli_strings_str = match.group(1)
+        coeffs_str = match.group(2)
+        
+        # Convert the string representations to actual Python lists
+        pauli_strings = ast.literal_eval(f"[{pauli_strings_str}]")
+        coeffs = ast.literal_eval(f"[{coeffs_str}]")
+        
+        return pauli_strings, coeffs
+    else:
+        raise ValueError("No valid SparsePauliOp found in the string.")
 
 ################### Main ###################
-
+filename = 'vqe_results.csv'
 # plot the data
 if __name__ == '__main__':
 
@@ -156,7 +197,6 @@ if __name__ == '__main__':
     figsize = (15,10)
 
     # read in the data
-    filename = 'vqe_results.csv'
     data = pd.read_csv('../results/'+filename)
 
     
@@ -165,7 +205,7 @@ if __name__ == '__main__':
     
     #pauli_plots = input("Plot pauli results?: (y/n)")
     
-    if(True):
+    if(False):
 
 
         # reformat the data
@@ -358,21 +398,48 @@ if __name__ == '__main__':
     
 
     #Create a heat map for pauli weight an coefficient, to see  if they correlate
-    # Plot the VQE results
+    if(True):
+        print('Checking if pauli weight and coefficient magnitude correlate')
+        
+        # Prepare the data
+        data = pd.read_csv('../results/'+filename)
+        data.keys()
+        hamiltonians = []
+        hamiltonians = data['hamiltonian']
+        data.drop(columns=data.keys())
+        print('Number of Hamiltonians '+str(len(hamiltonians)))
+        
+        
+        pauli_weights  = []
+        coeffs = []
+        
+        ham_string = hamiltonians[40]
+        paulis,coefficients = extract_pauli_and_coeffs(ham_string)
+        for pauli,coeff in zip(paulis,coefficients):
+            try: 
+                fixed_coeff = float(abs(np.real(coeff)))
+                pw = pauli_weight(pauli)
+                if(pw==0):
+                    continue
+                coeffs.append(np.real(coeff))
+                pauli_weights.append(pauli_weight(pauli))
+            except:
+                continue
     
-    # read in the data (again)
-    data = pd.read_csv('../results/'+filename)
+        
+        # add jittering
+        ham_data = pd.DataFrame({'Pauli weight':list(pauli_weights),'Coefficient':list(coeffs)})
+        
+        plt.figure(figsize=figsize)
+        #sns.scatterplot(data=ham_data, x='Pauli weight', y='Coefficient', color='blue', label='Data points')
+        plt.scatter(pauli_weights,coeffs)
+        #sns.regplot(data=ham_data, x='Pauli weight', y='Coefficient', scatter=False, color='orange', label='Line of Best Fit')
+        plt.xlabel('Pauli weight')
+        plt.ylabel('Coefficient magnitude')
+        plt.show()
+
     
     
-    # reformat the data
-    dropping = ['avg_pauli_weight','avg_hardware_pauli_weight'
-                 ,'parameters','ansatz_circuit','hamiltonian'
-                 ,'num_pauli_strings'  
-    ]
-    
-     
-    data = data.drop(columns=dropping)
-    #plot_vqe = input('Plot vqe results?: (y/n)')
     
     
     if(False):
