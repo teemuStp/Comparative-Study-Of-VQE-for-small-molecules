@@ -42,6 +42,11 @@ JW_color = 'blue'
 BK_color = 'orange'
 OTT_color = 'green'
 
+JW_shape = 'o'
+PR_shape = '^'
+BK_shape  = 's'
+OTT_shape = 'D'
+
 theory_col = 'grey'
 avg_fit_color = 'red'
 fit_color = 'red'
@@ -175,12 +180,19 @@ if __name__ == '__main__':
         fig.suptitle('Pauli weights for different mappings')
         axs = axs.ravel()
 
+        
+        df_pauli_strings  = pd.DataFrame(columns=['Jordan-Wigner','Parity','Bravyi-Kitaev','Ternary Tree'],index=None)
+        
+        fig_n_ps,ax_n_ps = plt.subplots(2,2,figsize=figsize)
+        fig_n_ps.suptitle('Number of Pauli strings')
+        ax_n_ps = ax_n_ps.ravel()
+
 
         format = 'png'
 
 
         # Plot the the Pauli properties
-        for ax,map in zip(axs.flat,mappings):
+        for ax,map,n_ps in zip(axs.flat,mappings,ax_n_ps.flat):
             print(map)
 
 
@@ -192,7 +204,7 @@ if __name__ == '__main__':
                 avg_hardware_pauli_weight = list(map_data['avg_hardware_pauli_weight'])
                 num_pauli_strings = list(map_data['num_pauli_strings'])
                 max_pauli_weights = list(map_data['max_pauli_weight'])
-                max_hrdwwr_pauli_weights = list(map_data['max_hrdwr_pauli_weight'])
+                max_hrdwr_pauli_weights = list(map_data['max_hrdwr_pauli_weight'])
 
 
                 # Create the range for the scaling
@@ -211,6 +223,11 @@ if __name__ == '__main__':
                     init_guess = [1]
                     PR_avg_a, covariance = curve_fit(PR_scaling,train_x,train_avg_y, p0=init_guess)
                     ax.plot(plot_range, PR_scaling(plot_range,PR_avg_a),color=fit_color,linestyle='--',label=f"{PR_avg_a[0]:.2f}N")
+                    shape = PR_shape
+                    color = PR_color
+                    size = 1.0
+                    fc = 'none'
+                    df_pauli_strings['Jordan-Wigner'] = (num_qubits,num_pauli_strings)
 
 
 
@@ -221,6 +238,11 @@ if __name__ == '__main__':
                     init_guess = [1]
                     JW_avg_a, covariance = curve_fit(JW_scaling,train_x,train_avg_y, p0=init_guess)
                     ax.plot(plot_range, JW_scaling(plot_range,JW_avg_a),color=fit_color,linestyle='--',label=f"{JW_avg_a[0]:.2f}N")
+                    shape = JW_shape
+                    color = JW_color
+                    size  = 0.8
+                    fc = 'none'
+                    df_pauli_strings['Parity'] = (num_qubits,num_pauli_strings)
 
 
                 elif map == 'bravyi_kitaev':
@@ -241,7 +263,12 @@ if __name__ == '__main__':
 
                     ax.plot(plot_range, BK_scaling(plot_range,a,b,c),color=fit_color ,label=f"{a:.2f}+{b:.2f}log2({c:.2f}N)")
                     ax.plot(plot_range, BK_scaling(plot_range,BK_avg_a,BK_avg_b,BK_avg_c),color=fit_color,linestyle='--',label=f"{BK_avg_a:.2f}+{BK_avg_b:.2f}log2({BK_avg_c:.2f}N)")
-
+                    shape = BK_shape
+                    color = BK_color
+                    size =1.0
+                    fc = None
+                    df_pauli_strings['Bravyi-Kitaev'] = (num_qubits,num_pauli_strings)
+                    
 
                 elif map == 'neven':
                     scaling = OTT_scaling(plot_range)
@@ -259,7 +286,11 @@ if __name__ == '__main__':
 
                     ax.plot(plot_range, OTT_scaling(plot_range,a,b,c), color=fit_color,label=f"{a:.2f}+{b:.2f}log3({2*c:.2f}N)")
                     ax.plot(plot_range, OTT_scaling(plot_range,OTT_avg_a,OTT_avg_b,OTT_avg_c),color=fit_color,linestyle='--',label=f"{OTT_avg_a:.2f}+{OTT_avg_b:.2f}log3({2*OTT_avg_c:.2f}N)")
-
+                    shape = OTT_shape
+                    color = OTT_color
+                    size  = 1.0
+                    fc = None
+                    df_pauli_strings['Ternary Tree'] = (num_qubits,num_pauli_strings)
                
 
                     
@@ -277,31 +308,23 @@ if __name__ == '__main__':
                 ax.set_ylim(0, 25)
                 
        
-                # Add the title and grid
+                # Add the title and grid Pauli weights
                 ax.set_title(name)
                 ax.grid(True, which='both', linestyle='--', color='grey')
 
-
-                
-
-
-                # Plot the hardware weight and pauli weight 
-                #plt.plot(num_qubits, avg_hardware_pauli_weight, 'o', label='Rz based hadrware gates')
-                #plt.plot(num_qubits, avg_pauli_weight, 'o', label='Ideal qubit gates')
-                #plt.plot(plot_range, scaling, label='Theoretical scaling')
-                #plt.legend()
-                #plt.xlabel('Number of qubits')
-                #plt.ylabel('Number of qubit operations')
-                #plt.title('Number of gates to measure Pauli string'+name)
-                #plt.grid('both',linestyle='--')
-                #plt.savefig('../results/Hardware_Pauli_weight_'+map+'.'+format, format=format, dpi=1000)
-                #plt.show()
-            
-            #try:
-            #    print('moi')
-
-            #except:
-                # Jump to next mappingcontinue
+                # Same for pauli strings plot
+                n_ps.set_title(name)
+                n_ps.scatter(num_qubits,num_pauli_strings,color='k')
+                n_ps.grid(True, which='both', linestyle='--', color='grey')
+                n_ps.set_xlabel('Number of qubits')
+                n_ps.set_ylabel('Number of Pauli strings')   
+        
+        # Pauli string plot saving
+        fig_n_ps.savefig('../results/num_pauli_strings.'+format,format=format,bbox_inches='tight',dpi=1000)
+        fig_n_ps.show()
+        
+        
+        # save figures
         plt.savefig('../results/Pauli_weights.'+format, format=format, bbox_inches = 'tight',dpi=1000)
         plt.show()
     
@@ -331,7 +354,10 @@ if __name__ == '__main__':
         plt.grid('both',linestyle='--')
         plt.savefig('../results/avg_pauli_weight_scalings.'+format, format=format, dpi=1000)
         plt.show()
+        
+    
 
+    #Create a heat map for pauli weight an coefficient, to see  if they correlate
     # Plot the VQE results
     
     # read in the data (again)
