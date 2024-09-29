@@ -8,9 +8,12 @@ warnings.filterwarnings("ignore")
 
 # General imports
 import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
 import numpy as np
 import math
+import re
+import ast
 
 
 # Import curve fitting from scipy
@@ -20,6 +23,11 @@ from scipy.optimize import curve_fit
 # Sympy imports for printing
 from sympy import symbols, log
 from sympy.printing.latex import latex
+
+
+# import SparsePauliOP
+from qiskit.quantum_info import SparsePauliOp
+
 
 ################# Global variables ##############
 
@@ -41,6 +49,11 @@ PR_color = 'brown'
 JW_color = 'blue'
 BK_color = 'orange'
 OTT_color = 'green'
+
+JW_shape = 'o'
+PR_shape = '^'
+BK_shape  = 's'
+OTT_shape = 'D'
 
 theory_col = 'grey'
 avg_fit_color = 'red'
@@ -141,9 +154,42 @@ def OTT_scaling(num_qubits,a=0,b=1,c=1):
         
     return [a+b*np.log(arg)/np.log(3) for arg in args]
 
+def pauli_weight(pauli_string):
+    """Caclulates the Pauli weight of a given Pauli string (NUmber of Pauyli operators in a string). This method calculates the theoretical value if circut can execute
+        X, Y and Z in on operation.
+        
+    Args:
+        pauli_string (str): Pauli string
+    Returns:
+            Pauli Weight (int)"""
+    weight = 0
+    for oper in str(pauli_string):
+        if oper == 'Z' or oper == 'X' or oper == 'Y':
+            weight += 1
+    return weight
+
+def extract_pauli_and_coeffs(s):
+    # Define a regular expression pattern to capture the Pauli strings and coefficients
+    pattern = r"SparsePauliOp\(\[(.*?)\],\s*coeffs=\[(.*?)\]\)"
+    
+    # Search for the pattern in the string
+    match = re.search(pattern, s, re.DOTALL)
+    
+    if match:
+        # Extract the two groups: pauli strings and coefficients
+        pauli_strings_str = match.group(1)
+        coeffs_str = match.group(2)
+        
+        # Convert the string representations to actual Python lists
+        pauli_strings = ast.literal_eval(f"[{pauli_strings_str}]")
+        coeffs = ast.literal_eval(f"[{coeffs_str}]")
+        
+        return pauli_strings, coeffs
+    else:
+        raise ValueError("No valid SparsePauliOp found in the string.")
 
 ################### Main ###################
-
+filename = 'vqe_results.csv'
 # plot the data
 if __name__ == '__main__':
 
@@ -151,7 +197,6 @@ if __name__ == '__main__':
     figsize = (15,10)
 
     # read in the data
-    filename = 'vqe_results.csv'
     data = pd.read_csv('../results/'+filename)
 
     
@@ -160,7 +205,7 @@ if __name__ == '__main__':
     
     #pauli_plots = input("Plot pauli results?: (y/n)")
     
-    if(True):
+    if(False):
 
 
         # reformat the data
@@ -175,12 +220,19 @@ if __name__ == '__main__':
         fig.suptitle('Pauli weights for different mappings')
         axs = axs.ravel()
 
+        
+        df_pauli_strings  = pd.DataFrame(columns=['Jordan-Wigner','Parity','Bravyi-Kitaev','Ternary Tree'],index=None)
+        
+        fig_n_ps,ax_n_ps = plt.subplots(2,2,figsize=figsize)
+        fig_n_ps.suptitle('Number of Pauli strings')
+        ax_n_ps = ax_n_ps.ravel()
+
 
         format = 'png'
 
 
         # Plot the the Pauli properties
-        for ax,map in zip(axs.flat,mappings):
+        for ax,map,n_ps in zip(axs.flat,mappings,ax_n_ps.flat):
             print(map)
 
 
@@ -192,7 +244,7 @@ if __name__ == '__main__':
                 avg_hardware_pauli_weight = list(map_data['avg_hardware_pauli_weight'])
                 num_pauli_strings = list(map_data['num_pauli_strings'])
                 max_pauli_weights = list(map_data['max_pauli_weight'])
-                max_hrdwwr_pauli_weights = list(map_data['max_hrdwr_pauli_weight'])
+                max_hrdwr_pauli_weights = list(map_data['max_hrdwr_pauli_weight'])
 
 
                 # Create the range for the scaling
@@ -211,6 +263,11 @@ if __name__ == '__main__':
                     init_guess = [1]
                     PR_avg_a, covariance = curve_fit(PR_scaling,train_x,train_avg_y, p0=init_guess)
                     ax.plot(plot_range, PR_scaling(plot_range,PR_avg_a),color=fit_color,linestyle='--',label=f"{PR_avg_a[0]:.2f}N")
+                    shape = PR_shape
+                    color = PR_color
+                    size = 1.0
+                    fc = 'none'
+                    df_pauli_strings['Jordan-Wigner'] = (num_qubits,num_pauli_strings)
 
 
 
@@ -221,6 +278,11 @@ if __name__ == '__main__':
                     init_guess = [1]
                     JW_avg_a, covariance = curve_fit(JW_scaling,train_x,train_avg_y, p0=init_guess)
                     ax.plot(plot_range, JW_scaling(plot_range,JW_avg_a),color=fit_color,linestyle='--',label=f"{JW_avg_a[0]:.2f}N")
+                    shape = JW_shape
+                    color = JW_color
+                    size  = 0.8
+                    fc = 'none'
+                    df_pauli_strings['Parity'] = (num_qubits,num_pauli_strings)
 
 
                 elif map == 'bravyi_kitaev':
@@ -241,7 +303,12 @@ if __name__ == '__main__':
 
                     ax.plot(plot_range, BK_scaling(plot_range,a,b,c),color=fit_color ,label=f"{a:.2f}+{b:.2f}log2({c:.2f}N)")
                     ax.plot(plot_range, BK_scaling(plot_range,BK_avg_a,BK_avg_b,BK_avg_c),color=fit_color,linestyle='--',label=f"{BK_avg_a:.2f}+{BK_avg_b:.2f}log2({BK_avg_c:.2f}N)")
-
+                    shape = BK_shape
+                    color = BK_color
+                    size =1.0
+                    fc = None
+                    df_pauli_strings['Bravyi-Kitaev'] = (num_qubits,num_pauli_strings)
+                    
 
                 elif map == 'neven':
                     scaling = OTT_scaling(plot_range)
@@ -259,7 +326,11 @@ if __name__ == '__main__':
 
                     ax.plot(plot_range, OTT_scaling(plot_range,a,b,c), color=fit_color,label=f"{a:.2f}+{b:.2f}log3({2*c:.2f}N)")
                     ax.plot(plot_range, OTT_scaling(plot_range,OTT_avg_a,OTT_avg_b,OTT_avg_c),color=fit_color,linestyle='--',label=f"{OTT_avg_a:.2f}+{OTT_avg_b:.2f}log3({2*OTT_avg_c:.2f}N)")
-
+                    shape = OTT_shape
+                    color = OTT_color
+                    size  = 1.0
+                    fc = None
+                    df_pauli_strings['Ternary Tree'] = (num_qubits,num_pauli_strings)
                
 
                     
@@ -277,31 +348,23 @@ if __name__ == '__main__':
                 ax.set_ylim(0, 25)
                 
        
-                # Add the title and grid
+                # Add the title and grid Pauli weights
                 ax.set_title(name)
                 ax.grid(True, which='both', linestyle='--', color='grey')
 
-
-                
-
-
-                # Plot the hardware weight and pauli weight 
-                #plt.plot(num_qubits, avg_hardware_pauli_weight, 'o', label='Rz based hadrware gates')
-                #plt.plot(num_qubits, avg_pauli_weight, 'o', label='Ideal qubit gates')
-                #plt.plot(plot_range, scaling, label='Theoretical scaling')
-                #plt.legend()
-                #plt.xlabel('Number of qubits')
-                #plt.ylabel('Number of qubit operations')
-                #plt.title('Number of gates to measure Pauli string'+name)
-                #plt.grid('both',linestyle='--')
-                #plt.savefig('../results/Hardware_Pauli_weight_'+map+'.'+format, format=format, dpi=1000)
-                #plt.show()
-            
-            #try:
-            #    print('moi')
-
-            #except:
-                # Jump to next mappingcontinue
+                # Same for pauli strings plot
+                n_ps.set_title(name)
+                n_ps.scatter(num_qubits,num_pauli_strings,color='k')
+                n_ps.grid(True, which='both', linestyle='--', color='grey')
+                n_ps.set_xlabel('Number of qubits')
+                n_ps.set_ylabel('Number of Pauli strings')   
+        
+        # Pauli string plot saving
+        fig_n_ps.savefig('../results/num_pauli_strings.'+format,format=format,bbox_inches='tight',dpi=1000)
+        fig_n_ps.show()
+        
+        
+        # save figures
         plt.savefig('../results/Pauli_weights.'+format, format=format, bbox_inches = 'tight',dpi=1000)
         plt.show()
     
@@ -331,22 +394,52 @@ if __name__ == '__main__':
         plt.grid('both',linestyle='--')
         plt.savefig('../results/avg_pauli_weight_scalings.'+format, format=format, dpi=1000)
         plt.show()
+        
+    
 
-    # Plot the VQE results
+    #Create a heat map for pauli weight an coefficient, to see  if they correlate
+    if(True):
+        print('Checking if pauli weight and coefficient magnitude correlate')
+        
+        # Prepare the data
+        data = pd.read_csv('../results/'+filename)
+        data.keys()
+        hamiltonians = []
+        hamiltonians = data['hamiltonian']
+        data.drop(columns=data.keys())
+        print('Number of Hamiltonians '+str(len(hamiltonians)))
+        
+        
+        pauli_weights  = []
+        coeffs = []
+        
+        ham_string = hamiltonians[40]
+        paulis,coefficients = extract_pauli_and_coeffs(ham_string)
+        for pauli,coeff in zip(paulis,coefficients):
+            try: 
+                fixed_coeff = float(abs(np.real(coeff)))
+                pw = pauli_weight(pauli)
+                if(pw==0):
+                    continue
+                coeffs.append(np.real(coeff))
+                pauli_weights.append(pauli_weight(pauli))
+            except:
+                continue
     
-    # read in the data (again)
-    data = pd.read_csv('../results/'+filename)
+        
+        # add jittering
+        ham_data = pd.DataFrame({'Pauli weight':list(pauli_weights),'Coefficient':list(coeffs)})
+        
+        plt.figure(figsize=figsize)
+        #sns.scatterplot(data=ham_data, x='Pauli weight', y='Coefficient', color='blue', label='Data points')
+        plt.scatter(pauli_weights,coeffs)
+        #sns.regplot(data=ham_data, x='Pauli weight', y='Coefficient', scatter=False, color='orange', label='Line of Best Fit')
+        plt.xlabel('Pauli weight')
+        plt.ylabel('Coefficient magnitude')
+        plt.show()
+
     
     
-    # reformat the data
-    dropping = ['avg_pauli_weight','avg_hardware_pauli_weight'
-                 ,'parameters','ansatz_circuit','hamiltonian'
-                 ,'num_pauli_strings'  
-    ]
-    
-     
-    data = data.drop(columns=dropping)
-    #plot_vqe = input('Plot vqe results?: (y/n)')
     
     
     if(False):
