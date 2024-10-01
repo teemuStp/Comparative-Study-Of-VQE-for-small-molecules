@@ -57,7 +57,7 @@ from qiskit_nature.second_q.circuit.library import HartreeFock, PUCCSD
 
 
 # Error message for the command line arguments
-arg_error_message = 'Please provide the correct number of arguments \n run_type=all/default/custom VQE=Y/N mol1,mol2,mol3 map1,map2,map3 ansatz1,ansatz2,ansatz3 mes1,mes2,mes3 z2_symmetry=True,False'
+arg_error_message = 'Please provide the correct number of arguments \n run_type=all/default/custom filename VQE=Y/N mol1,mol2,mol3 map1,map2,map3 ansatz1,ansatz2,ansatz3 mes1,mes2,mes3 z2_symmetry=True,False'
 
 
 # All possible implementation methods
@@ -65,6 +65,7 @@ all_mappers = ['parity','bravyi_kitaev', 'jordan_wigner','neven']
 all_ansatzes = ['EfficientSU2','kUpCCGSD']
 all_Z2Symmetries_list = [True,False]
 all_measurement_schemes = ['pauli_scheme','QWC']
+all_anzats_reps = [1,2,3]
 # Molecule list is below the chemistry_molecues dictionary
 
 
@@ -73,7 +74,10 @@ default_measurement_scheme = ['pauli_scheme']
 default_ansatz = ['EfficientSU2']
 default_mapping = ['jordan_wigner']
 default_z2 = [True]
+default_ansatz_reps = [2]
 
+
+ansatz_reps = [1,2,3]
 
 #############################################################
 
@@ -442,6 +446,8 @@ def command_line_parser(arguments):
             measurement_schemes = all_measurement_schemes
             z2_symmetry = all_Z2Symmetries_list
             VQE = 'Y'
+            filename = 'all_methods'
+            ansatz_reps = all_anzats_reps
     
 
         # Run the default methods
@@ -453,21 +459,24 @@ def command_line_parser(arguments):
             measurement_schemes = default_measurement_scheme
             z2_symmetry = default_z2
             VQE = 'Y'
+            filename = 'default_methods'
+            ansatz_reps = default_ansatz_reps
 
 
     # create a check thst the arguments are correct
-    elif len(arguments) != 7: 
+    elif len(arguments) != 8: 
         print(arg_error_message)
         sys.exit()
     else: 
         print('Running a custom set of arguments')
-        VQE = arguments[1]
-        molecules = arguments[2].split(',')
-        mappings = arguments[3].split(',')
-        ansatzes = arguments[4].split(',')    
-        measurement_schemes = arguments[5].split(',')
+        filename = arguments[1]
+        VQE = arguments[2]
+        molecules = arguments[3].split(',')
+        mappings = arguments[4].split(',')
+        ansatzes = arguments[5].split(',')    
+        measurement_schemes = arguments[6].split(',')
         # map the z2_symmetry to a boolean
-        z2_s = arguments[6].split(',') 
+        z2_s = arguments[7].split(',') 
         z2_symmetry=[]
         for z in z2_s:
             if z == 'True':
@@ -483,6 +492,7 @@ def command_line_parser(arguments):
         print('Ansatzes:',ansatzes)
         print('Measurement schemes:',measurement_schemes)
         print('Z2 Symmetry:',z2_symmetry)
+        print('Results will be saved in:',filename+'.csv')
 
 
     
@@ -504,7 +514,9 @@ def command_line_parser(arguments):
             sys.exit()
 
         print('All arguments correct!')
-    return VQE,molecules, mappings, ansatzes, measurement_schemes, z2_symmetry
+
+
+    return filename,VQE,molecules, mappings, ansatzes, measurement_schemes, z2_symmetry
   
 def remove_idle_qwires(circ):
 
@@ -543,7 +555,7 @@ if __name__=='__main__':
     
 
     # parse the command line arguments
-    VQE,molecules, mappers, ansatzes, measurement_schemes, Z2Symmetries_list = command_line_parser(arguments)
+    filename,VQE,molecules, mappers, ansatzes, measurement_schemes, Z2Symmetries_list = command_line_parser(arguments)
 
 
     # Create a pandas DataFrame to store the Hamiltonians
@@ -560,15 +572,15 @@ if __name__=='__main__':
 
 
     # flush the vqe_results.csv file adn write the header
-    with open('../results/vqe_results.csv','w') as file:
+    with open('../results/'+filename+'.csv','w') as file:
         writer = csv.writer(file)
         writer.writerow(data.columns)
         file.close()
 
-
+    print('')
     # Iterate over all different parameters and store the results in the DataFrame named data
     for map in mappers:
-        for reps in [1,2,3]:
+        for reps in ansatz_reps:
             for z2sym in Z2Symmetries_list:
                 for molecule in molecules:
                     for ansatz in ansatzes:
@@ -670,7 +682,7 @@ if __name__=='__main__':
                                         }
 
                             # Write to csv
-                            with open('../results/vqe_results.csv','a') as file:
+                            with open('../results/'+filename+'.csv','a') as file:
                                 writer = csv.writer(file)
                                 writer.writerow(new_row.values())
 
