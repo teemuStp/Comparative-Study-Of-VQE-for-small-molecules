@@ -310,7 +310,8 @@ def build_ansatz(ansatz_name,mapper,num_qubits,num_particles,num_spatial_orbital
         qubit_mapping = BravyiKitaevMapper()
     elif mapper == 'jordan_wigner':
         qubit_mapping = JordanWignerMapper()
-    # elif mapper == 'neven':
+    elif mapper == 'neven':
+        print('I hope you are not using kUPCCGSD with Neven mapper')
     #     qubit_mapping = FermionicQubitMappingType.NEVEN
     else:
         raise ValueError('Invalid mapper name')
@@ -478,6 +479,7 @@ def command_line_parser(arguments):
         # map the z2_symmetry to a boolean
         z2_s = arguments[7].split(',') 
         z2_symmetry=[]
+        ansatz_reps = [1,2,3]
         for z in z2_s:
             if z == 'True':
                 z = True
@@ -516,7 +518,7 @@ def command_line_parser(arguments):
         print('All arguments correct!')
 
 
-    return filename,VQE,molecules, mappings, ansatzes, measurement_schemes, z2_symmetry
+    return filename,VQE,molecules, mappings, ansatzes, measurement_schemes, z2_symmetry,ansatz_reps
   
 def remove_idle_qwires(circ):
 
@@ -555,7 +557,7 @@ if __name__=='__main__':
     
 
     # parse the command line arguments
-    filename,VQE,molecules, mappers, ansatzes, measurement_schemes, Z2Symmetries_list = command_line_parser(arguments)
+    filename,VQE,molecules, mappers, ansatzes, measurement_schemes, Z2Symmetries_list,ansatz_reps = command_line_parser(arguments)
 
 
     # Create a pandas DataFrame to store the Hamiltonians
