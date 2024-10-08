@@ -66,7 +66,6 @@ dot_size=0.3
 
 ################### Functions ###################
 
-
 def mapping_renamer(map_name):
 
     """Renames the mapping to a shorter form
@@ -194,10 +193,8 @@ filename = 'vqe_results.csv'
 if __name__ == '__main__':
 
 
-    figsize = (15,10)
 
-    # read in the data
-    data = pd.read_csv('../results/'+filename)
+    figsize = (15,10)
 
     
     # Define the methods
@@ -207,7 +204,9 @@ if __name__ == '__main__':
     
     if(False):
 
-
+        filename = input('What file to read?:')
+        data = pd.read_csv('../results/'+filename)
+        
         # reformat the data
         dropping = ['ansatz', 'ansatz_circuit',
             'hamiltonian','vqe_energies', 'iterations',
@@ -396,9 +395,8 @@ if __name__ == '__main__':
         plt.show()
         
     
-
     #Create a heat map for pauli weight an coefficient, to see  if they correlate
-    if(True):
+    if(False):
         print('Checking if pauli weight and coefficient magnitude correlate')
         
         # Prepare the data
@@ -439,8 +437,17 @@ if __name__ == '__main__':
         plt.show()
 
     
-    
-    
+    # Create images for the deafult run
+    if(True):
+        
+        filename = 'default_run.csv'
+
+        data = pd.read_csv('../results/'+filename)
+        data.drop(columns=['z2Symmetries', 'mapping', 'ansatz', 'ansatz_circuit',
+       'hamiltonian', 'avg_pauli_weight', 'num_pauli_strings','parameters',
+       'avg_hardware_pauli_weight', 'max_pauli_weight',
+       'max_hrdwr_pauli_weight'],inplace=True)
+        print(data.keys())
     
     if(False):
         
