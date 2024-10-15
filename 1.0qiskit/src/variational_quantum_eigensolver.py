@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import csv
 from collections import OrderedDict
+import time
 
 # Pre-defined ansatz circuit and operator class for Hamiltonian
 from qiskit.circuit.library import EfficientSU2
@@ -347,12 +348,13 @@ def cost_func(params, ansatz, hamiltonian, estimator,cost_history_dict):
     """
     pub = (ansatz, [hamiltonian], [params])
     result = estimator.run(ansatz,hamiltonian,params).result()
-    energy = result.values
+    energy = result.values[0]
+
 
     cost_history_dict["iters"] += 1
     cost_history_dict["prev_vector"] = params
     cost_history_dict["cost_history"].append(energy)
-    cost_history_dict["vectors"].append(params)
+    cost_history_dict["vectors"].append(params.tolist())
     #print(f"Iters. done: {cost_history_dict['iters']} [Current cost: {energy}]")
 
     return energy
@@ -562,7 +564,7 @@ if __name__=='__main__':
 
     # Create a pandas DataFrame to store the Hamiltonians
     data = pd.DataFrame(columns=['molecule',         'z2Symmetries', 'mapping', 'ansatz',
-                                'ansatz_circuit',    'hamiltonian',
+                                'time',              'hamiltonian',
                                 'avg_pauli_weight',  'num_pauli_strings',
                                 'num_qubits',        'vqe_energies',
                                 'iterations',        'parameters',
@@ -636,8 +638,9 @@ if __name__=='__main__':
                                         grouping = False
                                     else:
                                         grouping = True
+                                    start = time.time()
                                     vqe_results = vqe(num_qubits,ansatz_circuit,hamiltonian,grouping)
-                        
+                                    vqe_time_cost = time.time() - start
                         
                                 vqe_energies = vqe_results['cost_history']
                                 iterations = vqe_results['iters']
@@ -656,7 +659,9 @@ if __name__=='__main__':
                         
 
                                 # calculate the error
+                                start  = time.time()
                                 error = [float(abs(exact_energies[i]-vqe_energies[i])) for i in range(len(vqe_energies))]
+                                class_time_cost = time.time() - start
 
 
                             # if the system is too large, we do not perform the VQE calculation and return empty values
@@ -667,11 +672,13 @@ if __name__=='__main__':
                                 exact_energies = []
                                 exact_solution = 0.0
                                 error = []
+                                vqe_time_cost = 0.0
+                                class_time_cost = 0.0
 
             
                             # store the results in the DataFrame
                             new_row = { 'molecule':molecule,                                   'z2Symmetries': str(z2sym),
-                                        'mapping':map, 'ansatz':ansatz,                        'ansatz_circuit':ansatz_circuit,
+                                        'mapping':map, 'ansatz':ansatz,                        
                                         'hamiltonian':hamiltonian,                             'avg_pauli_weight':avg_pauli_weight,
                                         'num_pauli_strings':num_pauli_strings,                 'num_qubits':num_qubits,
                                         'vqe_energies':vqe_energies,                           'iterations':iterations,
@@ -680,7 +687,8 @@ if __name__=='__main__':
                                         'avg_hardware_pauli_weight':avg_hardware_pauli_weight, 'max_pauli_weight':max_pauli_weight,
                                         'max_hrdwr_pauli_weight':max_hardware_pauli_weight,    'num_parameters':num_params,
                                         'cx_gates':cx_gates,                                   'depth':depth,
-                                        'ansatz_reps':reps
+                                        'ansatz_reps':reps,
+                                        'vqe_time': vqe_time_cost,                               'classical_time':class_time_cost
                                         }
 
                             # Write to csv

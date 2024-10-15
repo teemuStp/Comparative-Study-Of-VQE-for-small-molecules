@@ -396,10 +396,8 @@ if __name__ == '__main__':
         plt.savefig('../results/avg_pauli_weight_scalings.'+format, format=format, dpi=1000)
         plt.show()
         
-    
-
     #Create a heat map for pauli weight an coefficient, to see  if they correlate
-    if(True):
+    if(False):
         print('Checking if pauli weight and coefficient magnitude correlate')
         
         # Prepare the data
@@ -414,7 +412,7 @@ if __name__ == '__main__':
         pauli_weights  = []
         coeffs = []
         
-        ham_string = hamiltonians[40]
+        ham_string = hamiltonians[0]
         paulis,coefficients = extract_pauli_and_coeffs(ham_string)
         for pauli,coeff in zip(paulis,coefficients):
             try: 
@@ -441,14 +439,59 @@ if __name__ == '__main__':
 
     # The default scheme
     if(True):
-        dropping = ['ansatz_circuit', 'hamiltonian', 
-                    'avg_pauli_weight', 'num_pauli_strings', 'vqe_energies', 
-                    'iterations', 'parameters', 'error', 'exact_energies', 'exact_solution', 
-                    'avg_hardware_pauli_weight', 'max_pauli_weight', 'max_hrdwr_pauli_weight']
-        
-        
+        filename = 'default_run.csv'
+        data = pd.read_csv('../results/' + filename)
 
-    
+        dropping = ['ansatz_circuit', 'hamiltonian','ansatz',
+                'avg_pauli_weight', 'mapping', 'num_pauli_strings', 
+            'parameters', 'z2Symmetries',
+            'avg_hardware_pauli_weight', 'max_pauli_weight', 'max_hrdwr_pauli_weight']
+
+        data = data.drop(columns=dropping)
+        print(data.head())
+
+        molecules = ['H2', 'LiH', 'H2O']
+        repetitions = [1, 2, 3]
+
+        # Define figure size (for example)
+        figsize = (12, 8)
+
+        # Create subplots with 3 rows (one for each molecule) and 3 columns (one for each repetition)
+        fig, axs = plt.subplots(3, 3, figsize=figsize)
+        fig.suptitle('Default run results')
+
+        # Flatte    n axes array for easy iteration
+        axs = axs.ravel()
+
+        # Iterate over molecules and repetitions, assigning each plot to the correct subplot
+        for i, mol in enumerate(molecules):
+            for j, rep in enumerate(repetitions):
+                ax = axs[i * 3 + j]
+                # Filter data for the given molecule and repetition
+                filtered_data = data[(data['molecule'] == mol) & (data['ansatz_reps'] == rep)]
+
+                if not filtered_data.empty:
+                    # Plot the VQE energies if the data is available
+                    vqe_energies = [float(elem) for elem in  filtered_data['vqe_energies'].to_list()[0].strip('[]').split(',')]
+                    error = [float(e) for e in filtered_data['error'].to_list()[0].strip('[]').split(',')]  
+                    exact_sol = float(filtered_data['exact_solution'])
+
+                    ax.plot(vqe_energies, label='Noisy')
+                    ax.axhline(y=exact_sol, color='r', linestyle='-', label='Exact')
+                    # ad line with exact solution and mean error added
+                    #ax.axhline(y=exact_sol+np.mean(error), color='g', linestyle='-', label='Exact + Mean error')
+                    ax.set_title(f'{mol} - {rep} ansatz reps')
+                else:
+                    ax.set_title(f'No data for {mol} - {rep} ansatz reps')
+        
+                ax.set_xlabel('Index')
+                ax.set_ylabel('Energy (Ha)')
+                ax.legend()
+
+        # Adjust layout and show the plot
+        plt.tight_layout()
+        plt.savefig('../results/default_run_convergence.png', format='png', dpi=1000)
+        plt.show()
     
     if(False):
         
