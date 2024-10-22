@@ -186,8 +186,9 @@ def retrieve_neven_mapper(filename):
 
     return hamiltonian
 
+
 def prepare_hamiltonian(
-    molecule_name, z2symmetry_reduction, mapping,freeze_core=True, basis='sto-3g'
+    molecule_name, z2symmetry_reduction, mapping, basis='sto-3g'
 ):  
     
 
@@ -212,9 +213,23 @@ def prepare_hamiltonian(
 
 
     # Get the information about the problem
-    num_particles = total_hamiltonian.num_particles # Returns (alpha,beta)
-    num_spatial_orbitals = total_hamiltonian.num_spatial_orbitals
-    active_orbitals = total_hamiltonian.orbital_energies
+    total__num_particles = total_hamiltonian.num_particles # Returns (alpha,beta)
+    total_num_spatial_orbitals = total_hamiltonian.num_spatial_orbitals
+    total_active_orbitals = total_hamiltonian.orbital_energies
+
+
+    # Apply the freeze core transformation
+    transformer = FreezeCoreTransformer(freeze_core=True)
+    #transformer.prepare_active_space(molecule,total_number_of_orbitals)
+    reduced_hamiltonian = transformer.transform(total_hamiltonian)
+
+
+    # Convert the Hamiltonian to second quantized form
+    hamiltonian = reduced_hamiltonian.hamiltonian.second_q_op()
+
+
+    num_spatial_orbitals = reduced_hamiltonian.num_spatial_orbitals
+    num_particles = reduced_hamiltonian.num_particles
 
 
     if mapping == "parity":
@@ -230,38 +245,28 @@ def prepare_hamiltonian(
         raise ValueError("Wrong mapping")
 
 
-    # Apply the freeze core transformation
-    transformer = FreezeCoreTransformer(freeze_core=freeze_core)
-    #transformer.prepare_active_space(molecule,total_number_of_orbitals)
-    reduced_hamiltonian = transformer.transform(total_hamiltonian)
-
-
-    # Convert the Hamiltonian to second quantized form
-    hamiltonian = reduced_hamiltonian.hamiltonian.second_q_op()
-
-
     # Apply the given fermion to Pauli encoding
     qubitOp = QubitMapper.map(self=qubit_mapping,
         second_q_ops=hamiltonian
         )
     
-
+    reduction = 0
     # Apply Z2 symmetries (except for hydrogen)
     if molecule_name != 'H2':
         if z2symmetry_reduction:
             z2symmetries = Z2Symmetries.find_z2_symmetries(qubitOp)
             qubitOp = z2symmetries.taper(qubitOp)
+            reduction = 2
+
 
 
     # Z2 symmetries need some specific handling
     if molecule_name == 'H2':
-        result = qubitOp,num_spatial_orbitals,num_particles
+        result = qubitOp,num_spatial_orbitals-reduction,num_particles
     elif z2symmetry_reduction:
-        result = qubitOp[0],num_spatial_orbitals,num_particles
+        result = qubitOp[0],num_spatial_orbitals-reduction,num_particles
     else:
-        result = qubitOp,num_spatial_orbitals,num_particles
-
-
+        result = qubitOp,num_spatial_orbitals-reduction,num_particles
     return result
 
 def pauli_weight(pauli_string):
@@ -306,7 +311,7 @@ def build_ansatz(ansatz_name,mapper,num_qubits,num_particles,num_spatial_orbital
     Returns: ansatz (QuantumCircuit): ansatz circuit"""
     
     if mapper == 'parity':
-        qubit_mapping = ParityMapper()
+        qubit_mapping = ParityMapper(num_particles)
     elif mapper == 'bravyi_kitaev': 
         qubit_mapping = BravyiKitaevMapper()
     elif mapper == 'jordan_wigner':
@@ -317,16 +322,14 @@ def build_ansatz(ansatz_name,mapper,num_qubits,num_particles,num_spatial_orbital
     else:
         raise ValueError('Invalid mapper name')
 
-    num_spat_orb = int(num_qubits/2)
-    num_particles = (int(num_qubits/2),int(num_qubits/2))
 
     # create HartreeFock state
-    hf_state = HartreeFock(num_spatial_orbitals=num_spat_orb, num_particles=num_particles, qubit_mapper=qubit_mapping)
+    hf_state = HartreeFock(num_spatial_orbitals=num_spatial_orbitals, num_particles=num_particles, qubit_mapper=qubit_mapping)
 
     if ansatz_name=='kUpCCGSD':
-        ansatz = PUCCSD(num_spatial_orbitals=num_spat_orb, num_particles=num_particles, qubit_mapper=qubit_mapping,reps=reps)
+        ansatz = PUCCSD(num_spatial_orbitals=num_spatial_orbitals, num_particles=num_particles, qubit_mapper=qubit_mapping,reps=reps)
     elif ansatz_name=='EfficientSU2':
-        ansatz = EfficientSU2(num_qubits=int(num_qubits), entanglement='linear', reps=reps)
+        ansatz = EfficientSU2(num_qubits=num_qubits, entanglement='linear', reps=reps)
     else: 
         print('You should not be able to get this message')
         raise ValueError('Invalid ansatz name')
@@ -360,7 +363,7 @@ def cost_func(params, ansatz, hamiltonian, estimator,cost_history_dict):
     return energy
     #optimize the ansatz for backend
 
-def vqe(num_qubits,ansatz,hamiltonian,grouping):
+def vqe(num_qubits,ansatz,hamiltonian,grouping,shots=1_000):
     
     
     """Run the VQE optimization algorithm. This function uses the COBYLA optimizer from SciPy. 
@@ -387,6 +390,9 @@ def vqe(num_qubits,ansatz,hamiltonian,grouping):
     ansatz_no_idles = remove_idle_qwires(ansatz)
 
 
+    # Add here the evaluation of the number of shots
+
+
     # Optimize the circuit
     ansatz_isa = pm.run(ansatz_no_idles)
     hamiltonian_isa = hamiltonian.apply_layout(layout=ansatz_isa.layout)
@@ -405,7 +411,7 @@ def vqe(num_qubits,ansatz,hamiltonian,grouping):
 
 
     estimator = BackendEstimator(backend,abelian_grouping=grouping)
-    estimator.options.default_shots = 10_000
+    estimator.options.default_shots = shots
     # set the maximum number of iterations
     options = {'maxiter': 400}
 
@@ -543,6 +549,15 @@ def remove_idle_qwires(circ):
 
     return dag_to_circuit(dag)
 
+def n_shots(variation,weight,precision):
+    variation = np.array(variation)
+    weight = np.array(weight)
+    return weight**2*variation/precision**2
+
+def total_shots(num_paulis,weights,variations,precision):
+    weights = np.array(weights)
+    variations = np.array(variations)
+    return num_paulis*np.sum(n_shots(variations,weights,precision))
 ############################################################
 
 
@@ -564,7 +579,7 @@ if __name__=='__main__':
 
     # Create a pandas DataFrame to store the Hamiltonians
     data = pd.DataFrame(columns=['molecule',         'z2Symmetries', 'mapping', 'ansatz',
-                                'time',              'hamiltonian',
+                                'vqe_time',           'hamiltonian',
                                 'avg_pauli_weight',  'num_pauli_strings',
                                 'num_qubits',        'vqe_energies',
                                 'iterations',        'parameters',
@@ -572,7 +587,8 @@ if __name__=='__main__':
                                 'exact_solution',    'avg_hardware_pauli_weight',
                                 'max_pauli_weight',  'max_hrdwr_pauli_weight',
                                 'num_parameters',    'gates',
-                                'depth',             'ansatz_reps'])
+                                'depth',             'ansatz_reps',
+                                'classical_time'])
 
 
     # flush the vqe_results.csv file adn write the header
@@ -593,7 +609,7 @@ if __name__=='__main__':
 
 
                             # create the problem hamiltonian
-                            hamiltonian,num_spatial_orbitals,num_particles = prepare_hamiltonian(molecule_name=molecule, z2symmetry_reduction=z2sym, freeze_core=True, mapping=map)
+                            hamiltonian,num_spatial_orbitals,num_particles = prepare_hamiltonian(molecule_name=molecule, z2symmetry_reduction=z2sym, mapping=map)
 
 
                             # retrieve and calculate some useful information
@@ -614,8 +630,8 @@ if __name__=='__main__':
                             ansatz_circuit = build_ansatz(ansatz_name=ansatz, mapper=map, num_qubits=num_qubits, num_particles=num_particles,
                                                           num_spatial_orbitals=num_spatial_orbitals, reps=reps)
                             num_params = ansatz_circuit.num_parameters
-                            cx_gates = ansatz_circuit.decompose(reps=2).count_ops()['cx']        # This is a dictionary, and we call the number of cx gates
-                            depth = ansatz_circuit.decompose(reps=2).depth()
+                            cx_gates = ansatz_circuit.decompose(reps=2).count_ops()['cx']  # This is a dictionary, and we call the number of cx gates
+                            depth = ansatz_circuit.decompose(reps=2).depth()               # Calcualte depth
 
 
                             # For laptops, simulating more than 10 qubits becomes too cucumbersome so we create a limit
@@ -655,13 +671,14 @@ if __name__=='__main__':
 
 
                                 # calculate the exact solution
-                                exact_solution = np.real(NumPyEigensolver(k=1).compute_eigenvalues(hamiltonian).eigenvalues[0])
-                        
-
-                                # calculate the error
                                 start  = time.time()
-                                error = [float(abs(exact_energies[i]-vqe_energies[i])) for i in range(len(vqe_energies))]
+                                exact_solution = np.real(NumPyEigensolver(k=1).compute_eigenvalues(hamiltonian).eigenvalues[0])
                                 class_time_cost = time.time() - start
+
+
+                                # calculate the error                                
+                                error = [float(abs(exact_energies[i]-vqe_energies[i])) for i in range(len(vqe_energies))]
+                                
 
 
                             # if the system is too large, we do not perform the VQE calculation and return empty values
@@ -677,19 +694,33 @@ if __name__=='__main__':
 
             
                             # store the results in the DataFrame
-                            new_row = { 'molecule':molecule,                                   'z2Symmetries': str(z2sym),
-                                        'mapping':map, 'ansatz':ansatz,                        
-                                        'hamiltonian':hamiltonian,                             'avg_pauli_weight':avg_pauli_weight,
-                                        'num_pauli_strings':num_pauli_strings,                 'num_qubits':num_qubits,
-                                        'vqe_energies':vqe_energies,                           'iterations':iterations,
-                                        'parameters':parameters,                               'error':error,
-                                        'exact_energies':exact_energies,                       'exact_solution':exact_solution,
-                                        'avg_hardware_pauli_weight':avg_hardware_pauli_weight, 'max_pauli_weight':max_pauli_weight,
-                                        'max_hrdwr_pauli_weight':max_hardware_pauli_weight,    'num_parameters':num_params,
-                                        'cx_gates':cx_gates,                                   'depth':depth,
-                                        'ansatz_reps':reps,
-                                        'vqe_time': vqe_time_cost,                               'classical_time':class_time_cost
+
+                            new_row = { 
+                                        'molecule': molecule,
+                                        'z2Symmetries': str(z2sym),
+                                        'mapping': map,
+                                        'ansatz': ansatz,
+                                        'vqe_time': vqe_time_cost,
+                                        'hamiltonian': hamiltonian,
+                                        'avg_pauli_weight': avg_pauli_weight,
+                                        'num_pauli_strings': num_pauli_strings,
+                                        'num_qubits': num_qubits,
+                                        'vqe_energies': vqe_energies,
+                                        'iterations': iterations,
+                                        'parameters': parameters,
+                                        'error': error,
+                                        'exact_energies': exact_energies,
+                                        'exact_solution': exact_solution,
+                                        'avg_hardware_pauli_weight': avg_hardware_pauli_weight,
+                                        'max_pauli_weight': max_pauli_weight,
+                                        'max_hrdwr_pauli_weight': max_hardware_pauli_weight,
+                                        'num_parameters': num_params,
+                                        'gates': cx_gates,  # assuming cx_gates corresponds to 'gates' in your original DataFrame
+                                        'depth': depth,
+                                        'ansatz_reps': reps,
+                                        'classical_time': class_time_cost
                                         }
+
 
                             # Write to csv
                             with open('../results/'+filename+'.csv','a') as file:

@@ -1,2 +1,2 @@
-python variational_quantum_eigensolver.py custom demo Y LiH jordan_wigner EfficientSU2 pauli_scheme True
+python vqe.py custom LiH_run Y LiH jordan_wigner EfficientSU2 QWC True
 

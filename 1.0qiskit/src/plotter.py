@@ -438,11 +438,12 @@ if __name__ == '__main__':
         plt.show()
 
     # The default scheme
-    if(True):
+    if(False):
         filename = 'default_run.csv'
+        image_save_name = filename.split('.')[0]
         data = pd.read_csv('../results/' + filename)
 
-        dropping = ['ansatz_circuit', 'hamiltonian','ansatz',
+        dropping = ['hamiltonian','ansatz',
                 'avg_pauli_weight', 'mapping', 'num_pauli_strings', 
             'parameters', 'z2Symmetries',
             'avg_hardware_pauli_weight', 'max_pauli_weight', 'max_hrdwr_pauli_weight']
@@ -490,11 +491,33 @@ if __name__ == '__main__':
 
         # Adjust layout and show the plot
         plt.tight_layout()
-        plt.savefig('../results/default_run_convergence.png', format='png', dpi=1000)
+        plt.savefig('../results/'+image_save_name+'_convergence.png', format='png', dpi=1000)
         plt.show()
     
-    if(False):
-        
-        print(data.head())
- 
+    if(True):
+        filename = 'LiH_run.csv'
+        image_save_name = filename.split('.')[0]
+        data = pd.read_csv('../results/' + filename)
 
+        dropping = ['hamiltonian','ansatz',
+                'avg_pauli_weight', 'mapping', 'num_pauli_strings', 
+            'parameters', 'z2Symmetries',
+            'avg_hardware_pauli_weight', 'max_pauli_weight', 'max_hrdwr_pauli_weight']
+
+        data = data.drop(columns=dropping)
+        print(data.head())
+
+
+        repetitions = list(data['ansatz_reps'])
+        print(repetitions)
+
+        for rep in repetitions:
+            data_filtered = data[data['ansatz_reps']==rep]
+            energies = [float(energy) for energy in eval(data_filtered['exact_energies'].values[0])]
+            plt.plot(energies,label=f'{rep} ansatz reps')
+
+        # add exact energy
+        #plt.axhline(y=float(data_filtered['exact_solution']), color='r', linestyle='-', label='Exact')
+        plt.legend()
+        plt.show()
+        
