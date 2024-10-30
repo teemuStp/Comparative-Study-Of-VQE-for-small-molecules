@@ -31,6 +31,11 @@ from qiskit.quantum_info import SparsePauliOp
 
 ################# Global variables ##############
 
+all_maps = ['jordan_wigner','parity','bravyi_kitaev','neven']
+molecules = ['H2', 'LiH', 'H2O', 'NH3', 'C2H4','O2']
+
+title_font= 16
+axis_font = 12
 
 # aAriables where to save the fitted curve parameters
 BK_a,BK_b,BK_c = 0,1,1
@@ -50,10 +55,14 @@ JW_color = 'blue'
 BK_color = 'orange'
 OTT_color = 'green'
 
+colors  = [PR_color,JW_color,BK_color,OTT_color]
+
 JW_shape = 'o'
 PR_shape = '^'
 BK_shape  = 's'
 OTT_shape = 'D'
+
+shapes = [JW_shape,PR_shape,BK_shape,OTT_shape]
 
 theory_col = 'grey'
 avg_fit_color = 'red'
@@ -63,6 +72,19 @@ max_data_col='black'
 avg_data_col='blue'
 
 dot_size=0.3
+
+all_columns = ['molecule',         'z2Symmetries', 'mapping', 'ansatz',
+                                'vqe_time',           'hamiltonian',
+                                'avg_pauli_weight',  'num_pauli_strings',
+                                'num_qubits',        'vqe_energies',
+                                'iterations',        'parameters',
+                                'error',             'exact_energies',
+                                'exact_solution',    'avg_hardware_pauli_weight',
+                                'max_pauli_weight',  'max_hrdwr_pauli_weight',
+                                'num_parameters',    'gates',
+                                'depth',             'ansatz_reps',
+                                'classical_time',
+                                'accuracies_shots']
 
 ################### Functions ###################
 
@@ -168,25 +190,45 @@ def pauli_weight(pauli_string):
             weight += 1
     return weight
 
-def extract_pauli_and_coeffs(s):
+def extract_pauli_and_coeffs(terms):
     # Define a regular expression pattern to capture the Pauli strings and coefficients
-    pattern = r"SparsePauliOp\(\[(.*?)\],\s*coeffs=\[(.*?)\]\)"
+    pauli_strings = []
+    oeffs = []
+    for s in terms:
+        pattern = r"SparsePauliOp\(\[(.*?)\],\s*coeffs=\[(.*?)\]\)"
     
-    # Search for the pattern in the string
-    match = re.search(pattern, s, re.DOTALL)
+        # Search for the pattern in the string
+        match = re.search(pattern, s, re.DOTALL)
     
-    if match:
-        # Extract the two groups: pauli strings and coefficients
-        pauli_strings_str = match.group(1)
-        coeffs_str = match.group(2)
+        if match:
+            # Extract the two groups: pauli strings and coefficients
+            pauli_strings_str = match.group(1)
+            coeffs_str = match.group(2)
         
-        # Convert the string representations to actual Python lists
-        pauli_strings = ast.literal_eval(f"[{pauli_strings_str}]")
-        coeffs = ast.literal_eval(f"[{coeffs_str}]")
+            # Convert the string representations to actual Python lists
+            pauli_strings.append(ast.literal_eval(f"[{pauli_strings_str}]"))
+            coeffs.append(ast.literal_eval(f"[{coeffs_str}]"))
         
-        return pauli_strings, coeffs
-    else:
-        raise ValueError("No valid SparsePauliOp found in the string.")
+        else:
+            raise ValueError("No valid SparsePauliOp found in the string.")
+    return pauli_strings, coeffs
+def num_x_y_z(paulis):
+    paulis = np.array(paulis)
+    num_x,num_y,num_z = [],[],[]
+    for pauli in paulis:
+        x,y,z = 0,0,0
+        for op in pauli:
+            if op == 'X':
+                x += 1
+            elif op == 'Y':
+                y += 1
+            elif op == 'Z':
+                z += 1
+        num_x.append(x)
+        num_y.append(y)
+        num_z.append(z)
+    return np.mean(num_x),np.mean(num_y),np.mean(num_z)
+
 
 ################### Main ###################
 filename = 'vqe_results.csv'
@@ -205,7 +247,7 @@ if __name__ == '__main__':
     mappings = ['parity', 'jordan_wigner', 'bravyi_kitaev', 'neven']
     
     #pauli_plots = input("Plot pauli results?: (y/n)")
-    
+   
     if(False):
 
 
@@ -494,7 +536,7 @@ if __name__ == '__main__':
         plt.savefig('../results/'+image_save_name+'_convergence.png', format='png', dpi=1000)
         plt.show()
     
-    if(True):
+    if(False):
         filename = 'LiH_run.csv'
         image_save_name = filename.split('.')[0]
         data = pd.read_csv('../results/' + filename)
@@ -521,3 +563,170 @@ if __name__ == '__main__':
         plt.legend()
         plt.show()
         
+# ACcuracy plots 
+    if (True):
+
+        # plotting he estimated accuracy repsect to shots, comparing mappings
+        #filename = 'accuracy_H2_run.csv'
+        #filename = 'accuracy_LiH_run.csv'
+        #filename = 'accuracy_H2O_run.csv'
+        files = ['accuracy_H2_run.csv','accuracy_LiH_run.csv','accuracy_H2O_run.csv']
+
+
+        figsize = (15,6)
+        fig, axs = plt.subplots(1, 3, figsize=figsize)
+        fig.suptitle('Accuracy estimates with a noisy simulation',fontsize=title_font)
+        # set all subplots nice chunk apart of each other
+        plt.subplots_adjust(wspace=0.3, hspace=0.3)
+        axs = axs.ravel()
+
+        for ax,filename in zip(axs,files):
+        
+            image_save_name = filename.split('.')[0]
+            data = pd.read_csv('../results/' + filename)
+            # Columns of interest
+            # num_qubits
+
+            dropping = ['z2Symmetries','ansatz',
+                                'vqe_time',           'hamiltonian',
+                                'avg_pauli_weight',  'num_pauli_strings',
+                                'vqe_energies',
+                                'iterations',        'parameters',
+                                'error',             'exact_energies',
+                                'exact_solution',    'avg_hardware_pauli_weight',
+                                'max_pauli_weight',  'max_hrdwr_pauli_weight',
+                                'num_parameters',    'gates',
+                                'ansatz_reps',
+                                'classical_time',
+                                ]
+
+
+            data = data.drop(columns=dropping)
+            acc_shots = list(data['accuracies_shots'])
+
+            
+            for map in all_maps:
+                data_filtered = data[data['mapping']==map]
+                num_qubits = data_filtered['num_qubits'].values[0]
+                depth = data_filtered['depth'].values[0]
+                name = mapping_renamer(map)
+                acc_shots = eval(data_filtered['accuracies_shots'].values[0])
+                ax.plot(acc_shots[1],acc_shots[0],label=name+'-depth:'+str(depth)+'-'+str(num_qubits)+'q')            
+            # add y line for chemical accuracy limit
+            ax.axhline(y=1.59e-3, color='k', linestyle='--', label='Chemical accuracy')
+            ax.set_title(filename.split('_')[1].split('.')[0])
+            ax.set_xlabel('Shots',fontsize=axis_font)
+            #  make 10^-2 formate nicely
+            ax.set_ylabel('Accuracy [mHa]',fontsize=axis_font)
+
+            
+            # Set the the y axis to have 8 ticks
+            ax.set_yticks(np.linspace(0,max(acc_shots[0]),8))
+            
+            # Set x ticks every 5000 units, from 0 to the maximum x value
+            if filename == 'accuracy_H2O_run.csv' or filename == 'accuracy_LiH_run.csv':
+                ax.set_xticks(np.arange(0, max(acc_shots[1]) + 1, 10_000))
+                ax.set_xlim(0, max(acc_shots[1]))
+            else:
+                ax.set_xticks(np.arange(0,max(acc_shots[1])+1, 5_000))
+                ax.set_xlim(0,max(acc_shots[1]))
+
+            # Rotate the x-axis tick labels 45 degrees
+            ax.tick_params(axis='x', rotation=30)
+
+
+            # set the y axis ticks to be showed to the second decimal
+            ax.set_yticklabels(['{:,.1f}'.format(x*10**3) for x in ax.get_yticks()])
+
+            
+            # set a grwy dashed grid
+            ax.grid(True, which='both', linestyle='--', color='grey')
+            ax.legend()
+        
+       
+        # add exact energy
+        #plt.axhline(y=float(data_filtered['exact_solution']), color='r', linestyle='-', label='Exact')
+        plt.savefig('../results/noisy_acc_data/accuracy_estimates_noisy.png', format='png', dpi=1000)
+        plt.show()
+
+# plot the Pauli coefficients respect to qubit number 
+    if (False):
+        ott_data= ()
+        bk_data = ()
+        pr_data = ()
+        jw_data = ()
+        all_data = [jw_data,pr_data,bk_data,ott_data]
+
+        qubits = []
+        xyz = []
+
+
+        for map,shape,color in zip(all_maps,shapes,colors):
+            num_qubits = []
+            avg_coeffs = []
+            num_x,num_y,num_z = [],[],[]
+            
+            for mol in molecules:
+                for z2 in ['True','False']:
+                                    
+                    with open('../hamiltonians/'+mol+'-'+map+'-'+z2+'.txt','r') as file:
+                        lines = file.readlines()
+                        
+                        num_qubits.append(int(len(str(lines[0]).split('*')[1])))
+                        jitter = np.random.normal(0,0.005)
+                        avg_coeffs.append(np.mean([np.abs(np.real(eval(str(line).split('*')[0]))) for line in lines])+jitter)
+                        paulis = [str(line).split('*')[1] for line in lines]
+
+                        
+                        x,y,z = num_x_y_z(paulis)
+                        num_x.append(x)
+                        num_y.append(y)
+                        num_z.append(z)
+
+
+                    qubits.append(num_qubits)
+            xyz.append([num_x,num_y,num_z])
+            #print(len(qubits),len(num_x),len(num_y),len(num_z))
+
+                   
+            # use the given shape ad color
+            plt.scatter(num_qubits,avg_coeffs,color=color,marker=shape,label=map)
+            
+        plt.title('Average Pauli coefficients (jittering)',fontsize=title_font)
+        plt.xlabel('Number of qubits',fontsize=axis_font)
+        plt.ylabel('Average coefficient magnitude',fontsize=axis_font)
+        plt.legend()
+        # add a grey dashed grid 
+        plt.grid(True, which='both', linestyle='--', color='grey')
+        plt.savefig('../results/average_coefficients.png', format='png', dpi=1000)
+        plt.show()
+                                    
+
+
+        # Create a figure with 4 subplots in a 2x2 grid
+        fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+
+        # Flatten the axes array for easy iteration
+        axs = axs.flatten()
+
+        # Loop through each map and corresponding data to plot on each subplot
+        for i, (map_name, n_qubits, xyz_map) in enumerate(zip(all_maps, qubits, xyz)):
+            ax = axs[i]
+            ax.scatter(n_qubits, xyz_map[0], color='b', marker='x', label='X')
+            ax.scatter(n_qubits, xyz_map[1], color='k', marker='D', facecolors='none', label='Y')
+            ax.scatter(n_qubits, xyz_map[2], color='g', marker='+', label='Z')
+    
+            name = mapping_renamer(map_name)
+            ax.set_title(name,fontsize=title_font)
+            ax.set_xlabel('Number of qubits')
+            ax.set_ylabel('Average count')
+            # set x ticks to be integers
+            ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+            # set y limit 0 to .5
+            ax.set_ylim(0,6.5)
+            ax.legend(loc='upper left')
+
+        # Adjust layout to prevent overlap
+        plt.tight_layout()
+        plt.savefig('../results/average_xyz.png', format='png', dpi=1000)
+        plt.show()

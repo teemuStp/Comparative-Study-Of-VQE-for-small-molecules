@@ -31,10 +31,6 @@ from scipy.optimize import minimize
 from qiskit_algorithms import NumPyEigensolver
 
 
-# Plotting functions
-import matplotlib.pyplot as plt
-
-
 # runtime imports 1.0 qiskit properties
 #from qiskit_ibm_runtime import QiskitRuntimeService, Session
 #from qiskit_ibm_runtime import EstimatorV2 as Estimator
@@ -126,11 +122,11 @@ chemistry_molecules = {
         symbols=["C","C","H","H","H","H"],
         coords=[
         (0.0, 0.0, 0.0),    # First Carbon
-        (1.34, 0.0, 0.0),   # Second Carbon
-        (-0.67, 0.94, 0.0), # First Hydrogen
-        (-0.67, -0.94, 0.0),# Second Hydrogen
-        (2.01, 0.94, 0.0),  # Third Hydrogen
-        (2.01, -0.94, 0.0)  # Fourth Hydrogen
+        (1.3304, 0.0, 0.0),   # Second Carbon
+        (-0.56380327217722, 0.922210, 0.0), # First Hydrogen
+        (-0.56380327217722, -0.922210, 0.0),# Second Hydrogen
+        (1.89420327217722, 0.922210, 0.0),  # Third Hydrogen
+        (1.89420327217722, -0.922210, 0.0)  # Fourth Hydrogen
         ],
         charge=0,
         multiplicity=1,
@@ -141,12 +137,12 @@ chemistry_molecules = {
     #    charge=0,
     #    multiplicity=1,
     #),
-    'O3': MoleculeInfo(
-        symbols=["O","O","O"],
-        coords=[(-1.082,-0.665,0.0),(0.0,0.0,0.0),(1.082,-0.665,0.0)],
-        charge=1,
-        multiplicity=1,
-    ),
+    #'O3': MoleculeInfo(
+    #    symbols=["O","O","O"],
+    ##    coords=[(-1.082,-0.665,0.0),(0.0,0.0,0.0),(1.082,-0.665,0.0)],
+     #   charge=1,
+    #    multiplicity=1,
+    #),
     'O2': MoleculeInfo(
         symbols=["O","O"],
         coords=[(0.0,0.0,0.0),(0.0,0.0,1.2)],
@@ -238,7 +234,12 @@ def prepare_hamiltonian(
         qubit_mapping = BravyiKitaevMapper()
     elif mapping == "neven":
         filename = molecule_name +'-neven-'+str(z2symmetry_reduction)+ '.txt'
-        return retrieve_neven_mapper('../hamiltonians/'+filename),num_spatial_orbitals,num_particles
+        qubitOp = retrieve_neven_mapper('../hamiltonians/'+filename)
+        if z2symmetry_reduction and molecule_name != 'H2':
+            reduction = 2
+        else:
+            reduction = 0
+        return qubitOp,num_spatial_orbitals-reduction,num_particles
     elif mapping == "jordan_wigner":
         qubit_mapping = JordanWignerMapper()
     else:
@@ -257,7 +258,6 @@ def prepare_hamiltonian(
             z2symmetries = Z2Symmetries.find_z2_symmetries(qubitOp)
             qubitOp = z2symmetries.taper(qubitOp)
             reduction = 2
-
 
 
     # Z2 symmetries need some specific handling
@@ -311,17 +311,16 @@ def build_ansatz(ansatz_name,mapper,num_qubits,num_particles,num_spatial_orbital
     Returns: ansatz (QuantumCircuit): ansatz circuit"""
     
     if mapper == 'parity':
-        qubit_mapping = ParityMapper(num_particles)
+        qubit_mapping = ParityMapper()
     elif mapper == 'bravyi_kitaev': 
         qubit_mapping = BravyiKitaevMapper()
     elif mapper == 'jordan_wigner':
         qubit_mapping = JordanWignerMapper()
     elif mapper == 'neven':
         print('I hope you are not using kUPCCGSD with Neven mapper')
-    #     qubit_mapping = FermionicQubitMappingType.NEVEN
+        qubit_mapping = JordanWignerMapper()
     else:
         raise ValueError('Invalid mapper name')
-
 
     # create HartreeFock state
     hf_state = HartreeFock(num_spatial_orbitals=num_spatial_orbitals, num_particles=num_particles, qubit_mapper=qubit_mapping)
@@ -334,7 +333,8 @@ def build_ansatz(ansatz_name,mapper,num_qubits,num_particles,num_spatial_orbital
         print('You should not be able to get this message')
         raise ValueError('Invalid ansatz name')
 
-    return hf_state.compose(ansatz)
+    #return hf_state.compose(ansatz)
+    return ansatz
 
 def cost_func(params, ansatz, hamiltonian, estimator,cost_history_dict):
     """Return estimate of energy from estimator
@@ -549,15 +549,55 @@ def remove_idle_qwires(circ):
 
     return dag_to_circuit(dag)
 
-def n_shots(variation,weight,precision):
-    variation = np.array(variation)
+def required_shots(weight,variation,accuracy=0.001):
     weight = np.array(weight)
-    return weight**2*variation/precision**2
+    variation = np.array(variation)
+    return (np.abs(weight)**2 *variation) / (accuracy**2) 
 
-def total_shots(num_paulis,weights,variations,precision):
-    weights = np.array(weights)
-    variations = np.array(variations)
-    return num_paulis*np.sum(n_shots(variations,weights,precision))
+
+# Functions to calculate the accuracy of the VQE calculation
+def accuracy(weights,variances,shots):
+    return np.sqrt(sum(np.abs(weights)**2*variances/shots))
+
+def pauli_splitter(pauli_op):
+    """Split a Pauli operator into its individual terms.
+    Args:
+        pauli_op (PauliOp): The Pauli operator to split.
+    Returns:
+        list: The list of individual Pauli terms.
+    """
+    paulis = pauli_op.paulis
+    coeffs = pauli_op.coeffs
+    terms = []
+    for pauli,coeff in zip(paulis,coeffs):
+        terms.append(SparsePauliOp(data=[pauli],coeffs=[coeff]))
+    return terms
+
+def variance(hamiltonian,shots,ansatz):
+    vars = []
+    splitted = pauli_splitter(hamiltonian)
+    num_qubits = len(hamiltonian.paulis[0])
+    backend_estimator = BackendEstimator(backend=GenericBackendV2(num_qubits),abelian_grouping=False)
+    #backend_estimator = Estimator()
+    parameters = [0.001] * ansatz.num_parameters # initial parameters, whit very close to zero angles
+    for obs in splitted:
+        job = backend_estimator.run(circuits=ansatz,observables=obs,parameter_values=parameters,shots=shots)
+        vars.append(job.result().metadata[0]['variance'])
+    return vars
+
+def calc_accuracy(hamiltonian,shots,ansatz):
+    vars = variance(hamiltonian,shots,ansatz)
+    return accuracy(weights=hamiltonian.coeffs,variances=vars,shots=shots)
+
+def save_hamiltonian(hamiltonian,filename):
+    with open(filename,'w') as file:
+        for i in range(len(hamiltonian.paulis)):
+            file.write(str(hamiltonian.coeffs[i]) + ' * ' + str(hamiltonian.paulis[i]) + '\n')
+        file.close()
+    return ''
+
+
+
 ############################################################
 
 
@@ -588,7 +628,8 @@ if __name__=='__main__':
                                 'max_pauli_weight',  'max_hrdwr_pauli_weight',
                                 'num_parameters',    'gates',
                                 'depth',             'ansatz_reps',
-                                'classical_time'])
+                                'classical_time',
+                                'accuracies_shots'])
 
 
     # flush the vqe_results.csv file adn write the header
@@ -599,10 +640,11 @@ if __name__=='__main__':
 
     print('')
     # Iterate over all different parameters and store the results in the DataFrame named data
-    for map in mappers:
-        for reps in ansatz_reps:
+    for molecule in molecules:
+        #for reps in ansatz_reps:
+        for reps in [2]:
             for z2sym in Z2Symmetries_list:
-                for molecule in molecules:
+                for map in mappers:
                     for ansatz in ansatzes:
                         for measurement in measurement_schemes:
                             print("Preparing: molecule:", molecule, "| z2Symmetries:", z2sym, "| mapping:", map, "| ansatz:", ansatz, "| measurement:", measurement)
@@ -611,6 +653,9 @@ if __name__=='__main__':
                             # create the problem hamiltonian
                             hamiltonian,num_spatial_orbitals,num_particles = prepare_hamiltonian(molecule_name=molecule, z2symmetry_reduction=z2sym, mapping=map)
 
+                            # Sve Hamitlonian to a file
+                            if map != 'neven':
+                                _ = save_hamiltonian(hamiltonian,'../hamiltonians/'+molecule+'-'+map+'-'+str(z2sym)+'.txt')
 
                             # retrieve and calculate some useful information
                             num_qubits = hamiltonian.num_qubits
@@ -640,6 +685,12 @@ if __name__=='__main__':
 
                             print('Preparation done!')
 
+                            if True:
+                                shots = [1000]#,2000]#,5000,10_000,20_000,30_000,40_000,60_000,80_000,100_000]
+                                accuracies = [calc_accuracy(hamiltonian,shot,ansatz_circuit) for shot in shots]
+                                accuracies_shots = (accuracies,shots)
+                            else: 
+                                accuracies_shots = (None,None)
             
                             # perform the vqe calculation for the given molecule if the system is small (<10 qubits)
                             if(run_vqe):    
@@ -718,8 +769,8 @@ if __name__=='__main__':
                                         'gates': cx_gates,  # assuming cx_gates corresponds to 'gates' in your original DataFrame
                                         'depth': depth,
                                         'ansatz_reps': reps,
-                                        'classical_time': class_time_cost
-                                        }
+                                        'classical_time': class_time_cost,
+                                        'accuracies_shots': accuracies_shots}
 
 
                             # Write to csv
