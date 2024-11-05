@@ -16,6 +16,7 @@ import pandas as pd
 import csv
 from collections import OrderedDict
 import time
+from pathlib import Path
 
 
 # Pre-defined ansatz circuit and operator class for Hamiltonian
@@ -57,6 +58,9 @@ from qiskit_nature.second_q.algorithms import GroundStateEigensolver
 
 # Error message for the command line arguments
 arg_error_message = 'Please provide the correct number of arguments \n run_type=all/default/custom filename VQE=Y/N mol1,mol2,mol3 map1,map2,map3 ansatz1,ansatz2,ansatz3 mes1,mes2,mes3 z2_symmetry=True,False'
+
+
+path_to_this_file = str(Path.cwd())
 
 
 # All possible implementation methods
@@ -355,7 +359,7 @@ def prepare_hamiltonian(
         qubit_mapping = BravyiKitaevMapper()
     elif mapping == "neven":
         filename = molecule_name +'-neven-'+str(z2symmetry_reduction)+ '.txt'
-        qubitOp = retrieve_neven_mapper('../hamiltonians/'+filename)
+        qubitOp = retrieve_neven_mapper(path_to_this_file+'/../hamiltonians/'+filename)
         if z2symmetry_reduction and molecule_name != 'H2':
             reduction = 2
         else:
@@ -778,7 +782,7 @@ if __name__=='__main__':
 
 
     # flush the vqe_results.csv file adn write the header
-    with open('../results/'+filename+'.csv','w') as file:
+    with open(path_to_this_file+'/../results/'+filename+'.csv','w') as file:
         writer = csv.writer(file)
         writer.writerow(data.columns)
         file.close()
@@ -795,12 +799,13 @@ if __name__=='__main__':
                             print("Preparing: molecule:", molecule, "| z2Symmetries:", z2sym, "| mapping:", map, "| ansatz:", ansatz, "| measurement:", measurement)
 
 
-                            # create the problem hamiltonian
+                            # create the problem hamiltoniansource ~/demo/VQE/bin/activate
+
                             hamiltonian,num_spatial_orbitals,num_particles = prepare_hamiltonian(molecule_name=molecule, z2symmetry_reduction=z2sym, mapping=map)
 
                             # Sve Hamitlonian to a file
                             if map != 'neven':
-                                _ = save_hamiltonian(hamiltonian,'../hamiltonians/'+molecule+'-'+map+'-'+str(z2sym)+'.txt')
+                                _ = save_hamiltonian(hamiltonian,path_to_this_file+'/../hamiltonians/'+molecule+'-'+map+'-'+str(z2sym)+'.txt')
 
                             # retrieve and calculate some useful information
                             num_qubits = hamiltonian.num_qubits
@@ -835,14 +840,14 @@ if __name__=='__main__':
 
                             print('Preparation done!')
 
-                            if False:
+                            if True:
                                 #if molecule=='NH3' or molecule=='C2H4':
                                 #    shot = 10_000#,2000]#,5000,10_000,20_000,30_000,40_000,60_000,80_000,100_000]
                                 #    vars = variance(hamiltonian,shot,ansatz_circuit)
                                 #    shots = [1000,2000,5000,10_000,20_000,40_000,60_000,80_000,100_000,150_000,200_000]
                                 #    accuracies = [approx_accracy(hamiltonian,shot,vars) for shot in shots]
                                 #else:
-                                shots = [1000,2000,5000,10_000,20_000,30_000,40_000,60_000,80_000,100_000]
+                                shots = [100]#,2000,5000,10_000,20_000,30_000,40_000,60_000,80_000,100_000]
                                 accuracies = [calc_accuracy(hamiltonian,shot,ansatz_circuit,True) for shot in shots]
                                 accuracies_shots = (accuracies,shots)
                             else: 
@@ -928,7 +933,7 @@ if __name__=='__main__':
 
 
                             # Write to csv
-                            with open('../results/'+filename+'.csv','a') as file:
+                            with open(path_to_this_file+'/../results/'+filename+'.csv','a') as file:
                                 writer = csv.writer(file)
                                 writer.writerow(new_row.values())
 
