@@ -34,6 +34,8 @@ from qiskit.quantum_info import SparsePauliOp
 all_maps = ['jordan_wigner','parity','bravyi_kitaev','neven']
 molecules = ['H2', 'LiH', 'H2O', 'NH3', 'C2H4','O2']
 
+literature_energies ={'H2':0,'LiH':0,'H2O':0,'NH3':0,'C2H4':0,'O2':0}
+
 title_font= 16
 axis_font = 12
 
@@ -72,6 +74,8 @@ max_data_col='black'
 avg_data_col='blue'
 
 dot_size=0.3
+
+dpi = 400
 
 all_columns = ['molecule',         'z2Symmetries', 'mapping', 'ansatz',
                                 'vqe_time',           'hamiltonian',
@@ -229,6 +233,29 @@ def num_x_y_z(paulis):
         num_z.append(z)
     return np.mean(num_x),np.mean(num_y),np.mean(num_z)
 
+
+
+# Functions to calculate the accuracy of the VQE calculation
+def accuracy(weights,var,shots):
+    return np.sqrt(sum(np.abs(weights)**2*var/shots))
+
+def pauli_splitter(pauli_op):
+    """Split a Pauli operator into its individual terms.
+    Args:
+        pauli_op (PauliOp): The Pauli operator to split.
+    Returns:
+        list: The list of individual Pauli terms.
+    """
+    paulis = pauli_op.paulis
+    coeffs = pauli_op.coeffs
+    terms = []
+    for pauli,coeff in zip(paulis,coeffs):
+        terms.append(SparsePauliOp(data=[pauli],coeffs=[coeff]))
+    return terms
+
+def calc_accuracy(hamiltonian,shots,var):
+    shots = np.array(shots)
+    return [accuracy(weights=hamiltonian.coeffs,var=var,shots=shot) for shot in shots]
 
 ################### Main ###################
 filename = 'vqe_results.csv'
@@ -563,18 +590,18 @@ if __name__ == '__main__':
         plt.legend()
         plt.show()
         
-# ACcuracy plots 
-    if (True):
+# ACcuracy plots for Pauli scheme 
+    if(False):
 
         # plotting he estimated accuracy repsect to shots, comparing mappings
         #filename = 'accuracy_H2_run.csv'
         #filename = 'accuracy_LiH_run.csv'
         #filename = 'accuracy_H2O_run.csv'
-        files = ['accuracy_H2_run.csv','accuracy_LiH_run.csv','accuracy_H2O_run.csv']
+        files = ['accuracy_H2_run.csv','accuracy_LiH_run.csv','accuracy_H2O_run.csv','accuracy_NH3_run.csv']
 
 
         figsize = (15,6)
-        fig, axs = plt.subplots(1, 3, figsize=figsize)
+        fig, axs = plt.subplots(1, 4, figsize=figsize)
         fig.suptitle('Accuracy estimates with a noisy simulation',fontsize=title_font)
         # set all subplots nice chunk apart of each other
         plt.subplots_adjust(wspace=0.3, hspace=0.3)
@@ -601,7 +628,6 @@ if __name__ == '__main__':
                                 ]
 
 
-            data = data.drop(columns=dropping)
             acc_shots = list(data['accuracies_shots'])
 
             
@@ -627,6 +653,9 @@ if __name__ == '__main__':
             if filename == 'accuracy_H2O_run.csv' or filename == 'accuracy_LiH_run.csv':
                 ax.set_xticks(np.arange(0, max(acc_shots[1]) + 1, 10_000))
                 ax.set_xlim(0, max(acc_shots[1]))
+            elif filename == 'accuracy_NH3_run.csv':
+                ax.set_xticks(np.arange(0,max(acc_shots[1])+1, 20_000))
+                ax.set_xlim(0,max(acc_shots[1]))
             else:
                 ax.set_xticks(np.arange(0,max(acc_shots[1])+1, 5_000))
                 ax.set_xlim(0,max(acc_shots[1]))
@@ -647,6 +676,79 @@ if __name__ == '__main__':
         # add exact energy
         #plt.axhline(y=float(data_filtered['exact_solution']), color='r', linestyle='-', label='Exact')
         plt.savefig('../results/noisy_acc_data/accuracy_estimates_noisy.png', format='png', dpi=1000)
+        #plt.savefig('../results/meas_schemes/QWC_accuracy_estimates.png', format='png', dpi=1000)
+        
+        plt.show()
+
+# Images for QWC accuracies
+    if(False):
+         # plotting he estimated accuracy repsect to shots, comparing mappings
+        filename = 'ALL_MAPS_QWC_accuracy_run.csv'
+        data = pd.read_csv('../results/meas_schemes/' + filename)
+        dropping = ['z2Symmetries','ansatz',
+                                'vqe_time',           'hamiltonian',
+                                'avg_pauli_weight',  'num_pauli_strings',
+                                'vqe_energies',
+                                'iterations',        'parameters',
+                                'error',             'exact_energies',
+                                'exact_solution',    'avg_hardware_pauli_weight',
+                                'max_pauli_weight',  'max_hrdwr_pauli_weight',
+                                'num_parameters',    'gates',
+                                'ansatz_reps',
+                                'classical_time','vqe_acc'
+                                ]
+        data.drop(columns=dropping)
+        figsize = (15,6)
+        fig, axs = plt.subplots(1, 4, figsize=figsize)
+        fig.suptitle('Accuracy estimates QWC noisy simulation',fontsize=title_font)
+        # set all subplots nice chunk apart of each other
+        plt.subplots_adjust(wspace=0.3, hspace=0.3)
+        axs = axs.ravel()
+
+
+        for ax,mol in zip(axs,['H2','LiH','H2O','NH3']):
+
+            # Columns of interest
+            # num_qubits
+            mol_data = data[data['molecule']==mol]
+
+            for map in all_maps:
+                data_filtered = mol_data[mol_data['mapping']==map]
+                num_qubits = data_filtered['num_qubits'].values[0]
+                depth = data_filtered['depth'].values[0]
+                name = mapping_renamer(map)
+                acc_shots = eval(data_filtered['accuracies_shots'].values[0])
+                ax.plot(acc_shots[1],acc_shots[0],label=name+'-depth:'+str(depth)+'-'+str(num_qubits)+'q')            
+            
+            # add y line for chemical accuracy limit
+            ax.axhline(y=1.59e-3, color='k', linestyle='--', label='Chemical accuracy')
+            ax.set_title(filename.split('_')[1].split('.')[0])
+            ax.set_xlabel('Shots',fontsize=axis_font)
+            #  make 10^-2 formate nicely
+            ax.set_ylabel('Accuracy [mHa]',fontsize=axis_font)
+
+            
+            # Set the the y axis to have 8 ticks
+            ax.set_yticks(np.linspace(0,max(acc_shots[0]),8))
+            
+            ax.set_xticks(np.arange(0, max(acc_shots[1]) + 1, 20_000))
+            ax.set_xlim(0, max(acc_shots[1]))
+
+            # Rotate the x-axis tick labels 45 degrees
+            ax.tick_params(axis='x', rotation=30)
+
+
+            # set the y axis ticks to be showed to the second decimal
+            ax.set_yticklabels(['{:,.1f}'.format(x*10**3) for x in ax.get_yticks()])
+
+            
+            # set a grwy dashed grid
+            ax.grid(True, which='both', linestyle='--', color='grey')
+            ax.legend()
+        
+       
+        plt.savefig('../results/meas_schemes/QWC_accuracy_estimates.png', format='png', dpi=1000)
+        
         plt.show()
 
 # plot the Pauli coefficients respect to qubit number 
@@ -730,3 +832,155 @@ if __name__ == '__main__':
         plt.tight_layout()
         plt.savefig('../results/average_xyz.png', format='png', dpi=1000)
         plt.show()
+
+
+# Plot to compare ansatz scaling
+    if (False):
+        HEA_file = '../results/ansatz_data/HEA_check.csv'
+        kUpCCGSD_file = '../results/ansatz_data/k-UpCCGSD_check.csv'
+        
+        # read in the data
+        HEA_data = pd.read_csv(HEA_file)
+        kUpCCGSD_data = pd.read_csv(kUpCCGSD_file)
+        dropping = ['z2Symmetries',
+                                'vqe_time',           'hamiltonian',
+                                'avg_pauli_weight',  'num_pauli_strings',
+                                'vqe_energies',
+                                'iterations',        'parameters',
+                                'error',             'exact_energies',
+                                'exact_solution',    'avg_hardware_pauli_weight',
+                                'max_pauli_weight',  'max_hrdwr_pauli_weight',
+                                'classical_time','vqe_acc'
+                                ]
+        HEA_data.drop(columns=dropping)
+        kUpCCGSD_data.drop(columns=dropping)
+
+        # Plot the HEA num_paramter, gates and depth respct to qubits
+
+        figsize = (15,6)
+        plt.title('Hardware efficient ansatz',fontsize=title_font)
+        plt.scatter(HEA_data['num_qubits'],HEA_data['depth'],linewidth=dot_size,marker=PR_shape,label='Depth')
+        plt.scatter(HEA_data['num_qubits'],HEA_data['num_parameters'],marker=BK_shape,label='Number of parameters')
+        plt.scatter(HEA_data['num_qubits'],HEA_data['gates'],marker = OTT_shape,label='CNOT gate count')
+
+        plt.xlabel('Number of qubits',fontsize=axis_font)
+        plt.ylabel('Count',fontsize=axis_font)
+
+        plt.legend(loc='upper left')
+        plt.savefig('../results/ansatz_data/HEA_check.png', format='png', dpi=1000)
+        
+        plt.show()
+        
+        # Plot the k-UpCCGSD num_paramter, gates and depth respct to qubits
+        fig, axs = plt.subplots(1, 3, figsize=figsize)
+        fig.suptitle('k-UpCCGSD ansatz',fontsize=title_font)
+        # set all subplots nice chunk apart of each other
+        plt.subplots_adjust(wspace=0.3, hspace=0.3)
+        axs = axs.ravel()
+
+        i=0
+        for map,ax in zip(['jordan_wigner','parity','bravyi_kitaev'],axs):
+            map_data = kUpCCGSD_data[kUpCCGSD_data['mapping']==map]
+            ax.scatter(map_data['num_qubits'],map_data['depth'],linewidth=dot_size,marker=PR_shape,label='Depth')
+            ax.scatter(map_data['num_qubits'],map_data['num_parameters']*100,marker=BK_shape,label='Number of parameters x100')
+            ax.scatter(map_data['num_qubits'],map_data['gates'],marker = OTT_shape,label='CNOT gate count')
+
+            ax.set_title(mapping_renamer(map),fontsize=title_font)
+            ax.set_xlabel('Number of qubits',fontsize=axis_font)
+            ax.set_ylim(-300,14000)
+            if (i==0):
+                ax.set_ylabel('Count',fontsize=axis_font)
+                ax.legend(loc='upper left')
+                i+=1
+        plt.show()
+        plt.savefig('../results/ansatz_data/k-UpCCGSD_check.png', format='png', dpi=dpi)
+
+# Plot exact energies for each molecule
+    if (False):
+        molecules = ['H2','LiH','H2O','NH3']
+        file = 'hamiltonian_results.csv'
+        data = pd.read_csv('../results/'+file)
+        relevant_columns = ['molecule','mapping','num_qubits','z2Symmetries','exact_solution']
+        
+        data = data[relevant_columns]
+
+        data_length = len(data)
+        # Print the dataframe 
+        print(data.head(data_length))
+
+        mappings = [mapping_renamer(map) for map in data['mapping']]
+        data['mapping'] = mappings
+        
+        print(data.head(data_length))
+        for mol,map,qubits,z2,exact in zip(data['molecule'],data['mapping'],data['num_qubits'],data['z2Symmetries'],data['exact_solution']):
+            # round exact to three digits 
+            exact = round(exact,3)
+            print(mol+'-'+map+'-'+str(qubits)+'q-z2:'+str(z2)+' & '+str(exact)+'\\\\')
+        # set all subplots nice chunk apart of each other
+        #for mol,ax in zip(molecules,axs):
+        #    molecule_data = data[data['molecule']==mol]
+        #   for map,shape,color in zip(all_maps,shapes,colors):
+        #        data_filtered = molecule_data[molecule_data['mapping']==map]
+        #        for z2 in [True,False]:
+        #            if (z2==False):
+        #                color = 'black'
+
+         #           data_filtered = data_filtered[data_filtered['z2Symmetries']==z2]
+         #           name = mapping_renamer(map)
+         #           exact_solution = data_filtered['exact_solution'].values
+                
+        #            for x in exact_solution:
+        #                solution = x
+
+                    
+                   
+        ##    if(i==0):
+         #       ax.set_ylabel('Energy [Ha]',fontsize=axis_font)
+         #       ax.legend(loc='upper left')
+         #       i+=1
+         #   ax.set_xlabel('',fontsize=axis_font)
+
+        #plt.show()
+
+# Plot convergence for VQE runs
+    if (True):
+        file = 'default_run_1.csv'
+        data = pd.read_csv('../results/default_runs/'+file)
+        
+
+        dropping = ['hamiltonian','ansatz',
+                'avg_pauli_weight', 'mapping', 'num_pauli_strings', 
+            'parameters', 'z2Symmetries',
+            'avg_hardware_pauli_weight', 'max_pauli_weight', 'max_hrdwr_pauli_weight']
+
+        data = data.drop(columns=dropping)
+
+        molecules = ['H2', 'LiH', 'H2O']
+
+
+        # Create subplots with 3 rows (one for each molecule) and 3 columns (one for each repetition)
+        fig, axs = plt.subplots(1, 3, figsize=figsize)
+        fig.suptitle('Default run results',fontsize=title_font)
+
+        # Flatte    n axes array for easy iteration
+        axs = axs.ravel()
+
+        axs[0].set_ylabel('Energy [Ha]')
+        
+        for mol,ax in zip(molecules,axs):
+            #print(eval(data[data['molecule']==mol]['vqe_energies'].values[0]))
+            ax.title.set_text(mol)
+            error = eval(data[data['molecule']==mol]['error'].values[0])
+            # vqe energies with error margins
+            vqe = eval(data[data['molecule']==mol]['vqe_energies'].values[0])
+            ax.plot(vqe,label='VQE energies')
+            ax.axhline(y=float(data[data['molecule']==mol]['exact_solution'].values[0]), color='k', linestyle='--', label='Exact solution')
+            ax.set_xlabel('Iterations')
+
+        # Adjust layout and show the plot
+        axs[2].legend(loc='upper right')
+        plt.tight_layout()
+        plt.show()
+        plt.savefig('../results/default_runs/default_run_1.png', format='png', dpi=400)
+
+        print(data['vqe_time'])

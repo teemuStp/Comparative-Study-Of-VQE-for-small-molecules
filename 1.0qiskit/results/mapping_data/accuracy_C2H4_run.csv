@@ -1,0 +1,1 @@
+molecule,z2Symmetries,mapping,ansatz,vqe_time,hamiltonian,avg_pauli_weight,num_pauli_strings,num_qubits,vqe_energies,iterations,parameters,error,exact_energies,exact_solution,avg_hardware_pauli_weight,max_pauli_weight,max_hrdwr_pauli_weight,num_parameters,gates,depth,ansatz_reps,classical_time,accuracies_shots

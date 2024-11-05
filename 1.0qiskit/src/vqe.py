@@ -17,6 +17,7 @@ import csv
 from collections import OrderedDict
 import time
 
+
 # Pre-defined ansatz circuit and operator class for Hamiltonian
 from qiskit.circuit.library import EfficientSU2
 from qiskit.quantum_info import Z2Symmetries,SparsePauliOp
@@ -40,6 +41,7 @@ from qiskit_algorithms import NumPyEigensolver
 from qiskit.primitives import Estimator,BackendEstimator
 from qiskit.providers.fake_provider import GenericBackendV2 # qiskit 1.0 property
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager # qiskit 1.0 property
+from qiskit.circuit import QuantumCircuit
 
 
 # qiskit_nature imports
@@ -48,7 +50,7 @@ from qiskit_nature.second_q.drivers import PySCFDriver
 from qiskit_nature.second_q.formats.molecule_info import MoleculeInfo
 from qiskit_nature.second_q.transformers import FreezeCoreTransformer
 from qiskit_nature.second_q.circuit.library import HartreeFock, PUCCSD
-
+from qiskit_nature.second_q.algorithms import GroundStateEigensolver
 
 #############    Define some constant methods   ############
 
@@ -97,17 +99,18 @@ chemistry_molecules = {
     ),
     "H2O": MoleculeInfo(
         symbols = ["O", "H", "H"],
-        coords=[(0.0,0.0,0.0),(0.757, 0.586, 0.0),(-0.757, 0.586, 0.0)],
+        #coords=[(0.0,0.0,0.0),(0.757, 0.586, 0.0),(-0.757, 0.586, 0.0)],
+        coords=[(0.0,0.0,0.116321),(0.0,0.751155,-0.465285),(0.0,-0.751155,-0.465285)],
         charge=0,
         multiplicity=1,
     ),
     "NH3": MoleculeInfo(
         symbols=["N","H","H","H"],
         coords=[
-        (0.0, 0.0, 0.1),     # Nitrogen
-        (0.94, 0.0, -0.27),  # First Hydrogen
-        (-0.47, 0.81, -0.27),# Second Hydrogen
-        (-0.47, -0.81, -0.27)# Third Hydrogen
+        (0.888, 1.538, 1.069),     # Nitrogen
+        (0.0, 0.0, 0.0),  # First Hydrogen
+        (0.0, 3.076, 0.0),# Second Hydrogen
+        (2.664, 1.538, 0.0)# Third Hydrogen
         ],
         charge=0,
         multiplicity=1,
@@ -156,6 +159,125 @@ all_molecule_names = list(chemistry_molecules.keys())
 ################### Define the functions ####################
 
 
+##### Functions for Qubit wise commuting Pauli strings ######
+
+
+def group_generator(pauli_list: SparsePauliOp):
+    """Returns the generator of a Pauli list that contains QUBIT WISE COMMUTING pauli strings"""
+    pauli_ops = pauli_list.paulis
+    max_length = len(pauli_ops[0])
+    generator_terms = ['I']*max_length
+    
+    Pauli_ops_by_qubits = []
+    
+    for qubit in range(max_length):
+        Pauli_ops_by_qubits = [str(pauli)[qubit] for pauli in pauli_ops]
+        
+        for op in Pauli_ops_by_qubits:
+            if op != 'I':
+                generator_terms[qubit] = op
+                # jump to next iteration of qubit
+                break
+                
+
+    # Construct the generator
+    generator = ''
+    for op in generator_terms:
+        generator += op
+ 
+    
+    return SparsePauliOp(data=[generator],coeffs=[1.0])
+
+def pauli_exp_val(pauli: str, counts: dict):
+    # indices to check for the Pauli operators
+    indices = [i for i in range(len(pauli)) if pauli[i] != 'I']
+    # Initialize the expectation value
+    exp = 0
+    shots = sum(counts.values())
+    for binary in counts.keys():
+        sign = 1
+        for i in indices:
+            if binary[i] == '1':
+                sign *= -1
+        exp += sign * counts[binary]/shots
+    return exp, 1-exp**2   
+
+def eval_commuting_group(group: SparsePauliOp, counts:dict):
+    """Evaluates the expectation value of a commuting group
+        Input:  group: SparsePauliOp                
+                counts: dict
+        Returns: expectation: float
+                 variances: list"""
+    
+    # Get the Pauli operators
+    paulis = group.paulis
+    coeffs = group.coeffs
+    
+    # Initialize the expectation value
+    expectation = 0
+    variances = []
+    # Iterate over the Pauli operators
+    for i in range(len(paulis)):
+        # Get the Pauli operator and its coefficient
+        pauli = paulis[i]
+        coeff = coeffs[i]
+        # Compute the expectation value
+        pauli_exp, pauli_var = pauli_exp_val(pauli, counts)
+        expectation += coeff * pauli_exp
+        variances.append(pauli_var)
+    # Return the expectation value
+    return expectation,variances
+    
+def apply_observable(circuit: QuantumCircuit,observable: str):
+    """Applies the given observable to the circuit
+    
+    Args: circuit: (QuantumCircuit) the circuit to apply the observable to
+          observable: (SparsePauliOp) the observable to apply
+    Returns: circuit: (QuantumCircuit) the circuit with the observable applied"""
+    
+    # Get the list of Pauli operators
+    paulis = str(observable)
+    qubit = 0
+    # Apply each Pauli operator to the circuit
+    for pauli in paulis:
+    
+        if pauli == 'X':
+            circuit.h(qubit)
+        elif pauli == 'Y':
+            circuit.sdg(qubit)
+            circuit.h(qubit)
+        elif pauli == 'Z' or pauli == 'I':
+            pass
+        else:
+            raise ValueError("Wrong operator")
+        qubit +=1
+    return circuit 
+
+def remove_idle_qwires(circ):
+
+
+    """Remove the idle qubits from the circuit
+        This functions is copied from stackexhange page: https://quantumcomputing.stackexchange.com/questions/25672/remove-inactive-qubits-from-qiskit-circuit
+        
+        Input: circ: QuantumCircuit
+        Returns: QuantumCircuit without idle qubits"""
+    
+
+    dag = circuit_to_dag(circ)
+
+    idle_wires = list(dag.idle_wires())
+    for w in idle_wires:
+        dag._remove_idle_wire(w)
+        dag.qubits.remove(w)
+
+    dag.qregs = OrderedDict()
+
+    return dag_to_circuit(dag)
+
+
+#############################################################
+
+
 def retrieve_neven_mapper(filename):
     """Retrieve the Neven mapper from a file in ../hamiltoninas/name.txt
 
@@ -181,7 +303,6 @@ def retrieve_neven_mapper(filename):
     hamiltonian = SparsePauliOp(data=paulis,coeffs=coeffs)
 
     return hamiltonian
-
 
 def prepare_hamiltonian(
     molecule_name, z2symmetry_reduction, mapping, basis='sto-3g'
@@ -218,7 +339,7 @@ def prepare_hamiltonian(
     transformer = FreezeCoreTransformer(freeze_core=True)
     #transformer.prepare_active_space(molecule,total_number_of_orbitals)
     reduced_hamiltonian = transformer.transform(total_hamiltonian)
-
+    
 
     # Convert the Hamiltonian to second quantized form
     hamiltonian = reduced_hamiltonian.hamiltonian.second_q_op()
@@ -299,7 +420,7 @@ def hardware_pauli_weight(pauli_string):
             weight += 4
     return weight
 
-def build_ansatz(ansatz_name,mapper,num_qubits,num_particles,num_spatial_orbitals,reps):
+def build_ansatz(ansatz_name,mapper,num_qubits: int,num_particles: tuple[int,int],num_spatial_orbitals: int,reps: int):
     """Create hartreeFock anstaz with selected parametrization. Neven mapper is handled as a special case.
 
     Args: ansatz_name (str): name of the ansatz
@@ -336,7 +457,7 @@ def build_ansatz(ansatz_name,mapper,num_qubits,num_particles,num_spatial_orbital
     #return hf_state.compose(ansatz)
     return ansatz
 
-def cost_func(params, ansatz, hamiltonian, estimator,cost_history_dict):
+def cost_func(params, ansatz, hamiltonian, estimator,cost_history_dict,shots):
     """Return estimate of energy from estimator
 
     Parameters:
@@ -350,14 +471,17 @@ def cost_func(params, ansatz, hamiltonian, estimator,cost_history_dict):
         float: Energy estimate
     """
     pub = (ansatz, [hamiltonian], [params])
-    result = estimator.run(ansatz,hamiltonian,params).result()
+    result = estimator.run(ansatz,hamiltonian,params,shots=shots).result()
     energy = result.values[0]
+    vars = result.metadata[0]['variance']
+    acc = accuracy(weights=hamiltonian.coeffs,variances=vars,shots=shots)
 
 
     cost_history_dict["iters"] += 1
     cost_history_dict["prev_vector"] = params
     cost_history_dict["cost_history"].append(energy)
     cost_history_dict["vectors"].append(params.tolist())
+    cost_history_dict["vqe_acc"].append(acc)
     #print(f"Iters. done: {cost_history_dict['iters']} [Current cost: {energy}]")
 
     return energy
@@ -376,6 +500,7 @@ def vqe(num_qubits,ansatz,hamiltonian,grouping,shots=1_000):
 
     # Get the backend
     backend = GenericBackendV2(ansatz.num_qubits)
+    backend.set_options(shots=shots)
     # https://docs.quantum.ibm.com/api/qiskit/qiskit.providers.fake_provider.GenericBackendV2
 
     # Get the number of parameters in the ansatz
@@ -403,6 +528,7 @@ def vqe(num_qubits,ansatz,hamiltonian,grouping,shots=1_000):
         "iters": 0,
         "cost_history": [],
         "vectors": [],
+        "vqe_acc":[]
     }
 
 
@@ -411,15 +537,15 @@ def vqe(num_qubits,ansatz,hamiltonian,grouping,shots=1_000):
 
 
     estimator = BackendEstimator(backend,abelian_grouping=grouping)
-    estimator.options.default_shots = shots
+    #estimator.options.default_shots = shots
     # set the maximum number of iterations
-    options = {'maxiter': 400}
+    options = {'maxiter': 100}
 
 
     res = minimize(
         cost_func,
         x0,
-        args=(ansatz_isa, hamiltonian_isa, estimator,cost_history_dict),
+        args=(ansatz_isa, hamiltonian_isa, estimator,cost_history_dict,shots),
         method="cobyla",
         options=options,
     )
@@ -554,7 +680,6 @@ def required_shots(weight,variation,accuracy=0.001):
     variation = np.array(variation)
     return (np.abs(weight)**2 *variation) / (accuracy**2) 
 
-
 # Functions to calculate the accuracy of the VQE calculation
 def accuracy(weights,variances,shots):
     return np.sqrt(sum(np.abs(weights)**2*variances/shots))
@@ -583,10 +708,29 @@ def variance(hamiltonian,shots,ansatz):
     for obs in splitted:
         job = backend_estimator.run(circuits=ansatz,observables=obs,parameter_values=parameters,shots=shots)
         vars.append(job.result().metadata[0]['variance'])
+
     return vars
 
-def calc_accuracy(hamiltonian,shots,ansatz):
-    vars = variance(hamiltonian,shots,ansatz)
+def QWC_variance(hamiltonian,shots,ansatz):
+    vars = []
+    num_qubits = len(hamiltonian.paulis[0])
+    backend_estimator = BackendEstimator(backend=GenericBackendV2(num_qubits),abelian_grouping=True)
+    #backend_estimator = Estimator()
+    parameters = [0.001] * ansatz.num_parameters # initial parameters, whit very close to zero angles
+    job = backend_estimator.run(circuits=ansatz,observables=hamiltonian,parameter_values=parameters,shots=shots)
+    vars.append(job.result().metadata[0]['variance'])
+
+    return vars
+
+
+def calc_accuracy(hamiltonian,shots,ansatz,grouping):
+    if  grouping ==True:
+        vars = QWC_variance(hamiltonian,shots,ansatz)
+    else:
+        vars = variance(hamiltonian,shots,ansatz)
+    return accuracy(weights=hamiltonian.coeffs,variances=vars,shots=shots)
+
+def approx_accracy(hamiltonian,shots,vars):
     return accuracy(weights=hamiltonian.coeffs,variances=vars,shots=shots)
 
 def save_hamiltonian(hamiltonian,filename):
@@ -629,7 +773,8 @@ if __name__=='__main__':
                                 'num_parameters',    'gates',
                                 'depth',             'ansatz_reps',
                                 'classical_time',
-                                'accuracies_shots'])
+                                'accuracies_shots',
+                                'vqe_acc'])
 
 
     # flush the vqe_results.csv file adn write the header
@@ -642,7 +787,7 @@ if __name__=='__main__':
     # Iterate over all different parameters and store the results in the DataFrame named data
     for molecule in molecules:
         #for reps in ansatz_reps:
-        for reps in [2]:
+        for reps in [1]:
             for z2sym in Z2Symmetries_list:
                 for map in mappers:
                     for ansatz in ansatzes:
@@ -677,7 +822,12 @@ if __name__=='__main__':
                             num_params = ansatz_circuit.num_parameters
                             cx_gates = ansatz_circuit.decompose(reps=2).count_ops()['cx']  # This is a dictionary, and we call the number of cx gates
                             depth = ansatz_circuit.decompose(reps=2).depth()               # Calcualte depth
-
+                            
+                            # solve exact solution for the mapping
+                            start  = time.time()
+                            exact_solution = np.real(NumPyEigensolver(k=1).compute_eigenvalues(hamiltonian).eigenvalues[0])
+                            print(exact_solution)
+                            class_time_cost = time.time() - start
 
                             # For laptops, simulating more than 10 qubits becomes too cucumbersome so we create a limit
                             run_vqe = (VQE=='Y')
@@ -685,9 +835,15 @@ if __name__=='__main__':
 
                             print('Preparation done!')
 
-                            if True:
-                                shots = [1000]#,2000]#,5000,10_000,20_000,30_000,40_000,60_000,80_000,100_000]
-                                accuracies = [calc_accuracy(hamiltonian,shot,ansatz_circuit) for shot in shots]
+                            if False:
+                                #if molecule=='NH3' or molecule=='C2H4':
+                                #    shot = 10_000#,2000]#,5000,10_000,20_000,30_000,40_000,60_000,80_000,100_000]
+                                #    vars = variance(hamiltonian,shot,ansatz_circuit)
+                                #    shots = [1000,2000,5000,10_000,20_000,40_000,60_000,80_000,100_000,150_000,200_000]
+                                #    accuracies = [approx_accracy(hamiltonian,shot,vars) for shot in shots]
+                                #else:
+                                shots = [1000,2000,5000,10_000,20_000,30_000,40_000,60_000,80_000,100_000]
+                                accuracies = [calc_accuracy(hamiltonian,shot,ansatz_circuit,True) for shot in shots]
                                 accuracies_shots = (accuracies,shots)
                             else: 
                                 accuracies_shots = (None,None)
@@ -712,6 +868,7 @@ if __name__=='__main__':
                                 vqe_energies = vqe_results['cost_history']
                                 iterations = vqe_results['iters']
                                 parameters = vqe_results['vectors']
+                                vqe_acc = vqe_results['vqe_acc']
 
 
                                 # calculate the exact energies for the given parameters
@@ -721,15 +878,11 @@ if __name__=='__main__':
                                     exact_energies.append(estimator.run(circuits=ansatz_circuit,observables=hamiltonian,parameter_values=parameters[i]).result().values[0])
 
 
-                                # calculate the exact solution
-                                start  = time.time()
-                                exact_solution = np.real(NumPyEigensolver(k=1).compute_eigenvalues(hamiltonian).eigenvalues[0])
-                                class_time_cost = time.time() - start
-
 
                                 # calculate the error                                
                                 error = [float(abs(exact_energies[i]-vqe_energies[i])) for i in range(len(vqe_energies))]
-                                
+                                                            # calculate the exact solution
+        
 
 
                             # if the system is too large, we do not perform the VQE calculation and return empty values
@@ -738,10 +891,10 @@ if __name__=='__main__':
                                 iterations = 0
                                 parameters = []
                                 exact_energies = []
-                                exact_solution = 0.0
                                 error = []
                                 vqe_time_cost = 0.0
                                 class_time_cost = 0.0
+                                vqe_acc  = []
 
             
                             # store the results in the DataFrame
@@ -770,7 +923,8 @@ if __name__=='__main__':
                                         'depth': depth,
                                         'ansatz_reps': reps,
                                         'classical_time': class_time_cost,
-                                        'accuracies_shots': accuracies_shots}
+                                        'accuracies_shots': accuracies_shots,
+                                        'vqe_acc': vqe_acc}
 
 
                             # Write to csv
@@ -778,6 +932,7 @@ if __name__=='__main__':
                                 writer = csv.writer(file)
                                 writer.writerow(new_row.values())
 
-                            print('Done. Moving to next molecule...\n')
+                            print('One system done and save. Moving to next system...\n')
+        print('Moving to next molecule...\n')
 
     print('Results saved successfully')
