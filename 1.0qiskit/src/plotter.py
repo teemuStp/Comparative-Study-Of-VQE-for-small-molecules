@@ -296,16 +296,16 @@ if __name__ == '__main__':
 
     # read in the data
 
-    data = pd.read_csv('../results/'+filename)
+    data = pd.read_csv('../results/all_hams.csv')
 
     
     # Define the methods
     mappings = ['parity', 'jordan_wigner', 'bravyi_kitaev', 'neven']
     
     #pauli_plots = input("Plot pauli results?: (y/n)")
-    if(False):
+    if(True):
 
-
+        data = pd.read_csv('../results/')
         # reformat the data
         dropping = ['ansatz', 'ansatz_circuit',
             'hamiltonian','vqe_energies', 'iterations',
@@ -622,7 +622,7 @@ if __name__ == '__main__':
         plt.show()
         
 
-# ACcuracy plots for Pauli scheme 
+# Accuracy plots for Pauli scheme 
     if(False):
 
         # plotting he estimated accuracy repsect to shots, comparing mappings
