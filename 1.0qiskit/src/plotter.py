@@ -14,7 +14,7 @@ import numpy as np
 import math
 import re
 import ast
-
+import os
 
 # Import curve fitting from scipy
 from scipy.optimize import curve_fit
@@ -76,6 +76,7 @@ avg_data_col='blue'
 dot_size=0.3
 
 dpi = 400
+format = 'pdf'
 
 all_columns = ['molecule',         'z2Symmetries', 'mapping', 'ansatz',
                                 'vqe_time',           'hamiltonian',
@@ -197,7 +198,7 @@ def pauli_weight(pauli_string):
 def extract_pauli_and_coeffs(terms):
     # Define a regular expression pattern to capture the Pauli strings and coefficients
     pauli_strings = []
-    oeffs = []
+    coeffs = []
     for s in terms:
         pattern = r"SparsePauliOp\(\[(.*?)\],\s*coeffs=\[(.*?)\]\)"
     
@@ -216,6 +217,7 @@ def extract_pauli_and_coeffs(terms):
         else:
             raise ValueError("No valid SparsePauliOp found in the string.")
     return pauli_strings, coeffs
+
 def num_x_y_z(paulis):
     paulis = np.array(paulis)
     num_x,num_y,num_z = [],[],[]
@@ -233,6 +235,32 @@ def num_x_y_z(paulis):
         num_z.append(z)
     return np.mean(num_x),np.mean(num_y),np.mean(num_z)
 
+
+
+def retrieve_ham(filename):
+    """Retrieve the Neven mapper from a file in ../hamiltoninas/name.txt
+
+    input: filename (str) - the name of the file containing the Neven mapping
+    
+    Return: SparsePauliOp - the Neven (Ternary tree) mapping"""
+
+    with open(filename,'r') as file:
+        lines = file.readlines()
+
+   
+    paulis = []
+    coeffs = []
+   
+   
+    for pauli in lines:
+        # The hamiltonian is formatted as 
+        # -float * String   i.e. -0.5 * ZZIXY
+        coeffs.append(pauli.split('*')[0])
+        paulis.append(pauli.split('*')[1].strip())
+
+    hamiltonian = SparsePauliOp(data=paulis,coeffs=coeffs)
+
+    return hamiltonian
 
 
 # Functions to calculate the accuracy of the VQE calculation
@@ -267,6 +295,7 @@ if __name__ == '__main__':
     figsize = (15,10)
 
     # read in the data
+
     data = pd.read_csv('../results/'+filename)
 
     
@@ -274,7 +303,6 @@ if __name__ == '__main__':
     mappings = ['parity', 'jordan_wigner', 'bravyi_kitaev', 'neven']
     
     #pauli_plots = input("Plot pauli results?: (y/n)")
-   
     if(False):
 
 
@@ -465,6 +493,7 @@ if __name__ == '__main__':
         plt.savefig('../results/avg_pauli_weight_scalings.'+format, format=format, dpi=1000)
         plt.show()
         
+
     #Create a heat map for pauli weight an coefficient, to see  if they correlate
     if(False):
         print('Checking if pauli weight and coefficient magnitude correlate')
@@ -505,6 +534,7 @@ if __name__ == '__main__':
         plt.xlabel('Pauli weight')
         plt.ylabel('Coefficient magnitude')
         plt.show()
+
 
     # The default scheme
     if(False):
@@ -563,6 +593,7 @@ if __name__ == '__main__':
         plt.savefig('../results/'+image_save_name+'_convergence.png', format='png', dpi=1000)
         plt.show()
     
+
     if(False):
         filename = 'LiH_run.csv'
         image_save_name = filename.split('.')[0]
@@ -590,6 +621,7 @@ if __name__ == '__main__':
         plt.legend()
         plt.show()
         
+
 # ACcuracy plots for Pauli scheme 
     if(False):
 
@@ -606,6 +638,7 @@ if __name__ == '__main__':
         # set all subplots nice chunk apart of each other
         plt.subplots_adjust(wspace=0.3, hspace=0.3)
         axs = axs.ravel()
+        axs[0].set_ylabel('Accuracy [mHa]',fontsize=axis_font)
 
         for ax,filename in zip(axs,files):
         
@@ -643,7 +676,7 @@ if __name__ == '__main__':
             ax.set_title(filename.split('_')[1].split('.')[0])
             ax.set_xlabel('Shots',fontsize=axis_font)
             #  make 10^-2 formate nicely
-            ax.set_ylabel('Accuracy [mHa]',fontsize=axis_font)
+            #ax.set_ylabel('Accuracy [mHa]',fontsize=axis_font)
 
             
             # Set the the y axis to have 8 ticks
@@ -675,10 +708,11 @@ if __name__ == '__main__':
        
         # add exact energy
         #plt.axhline(y=float(data_filtered['exact_solution']), color='r', linestyle='-', label='Exact')
-        plt.savefig('../results/noisy_acc_data/accuracy_estimates_noisy.png', format='png', dpi=1000)
+        plt.savefig('../results/noisy_acc_data/accuracy_estimates_noisy.'+format, format=format, dpi=1000)
         #plt.savefig('../results/meas_schemes/QWC_accuracy_estimates.png', format='png', dpi=1000)
         
         plt.show()
+
 
 # Images for QWC accuracies
     if(False):
@@ -750,6 +784,7 @@ if __name__ == '__main__':
         plt.savefig('../results/meas_schemes/QWC_accuracy_estimates.png', format='png', dpi=1000)
         
         plt.show()
+
 
 # plot the Pauli coefficients respect to qubit number 
     if (False):
@@ -895,6 +930,7 @@ if __name__ == '__main__':
         plt.show()
         plt.savefig('../results/ansatz_data/k-UpCCGSD_check.png', format='png', dpi=dpi)
 
+
 # Plot exact energies for each molecule
     if (False):
         molecules = ['H2','LiH','H2O','NH3']
@@ -942,8 +978,9 @@ if __name__ == '__main__':
 
         #plt.show()
 
+
 # Plot convergence for VQE runs
-    if (True):
+    if (False):
         file = 'default_run_1.csv'
         data = pd.read_csv('../results/default_runs/'+file)
         
@@ -981,6 +1018,115 @@ if __name__ == '__main__':
         axs[2].legend(loc='upper right')
         plt.tight_layout()
         plt.show()
-        plt.savefig('../results/default_runs/default_run_1.png', format='png', dpi=400)
+        plt.savefig('../results/default_runs/default_run_1.'+format, format=format, dpi=400)
 
         print(data['vqe_time'])
+
+
+# Optiizer and ansatz performance
+    if (False):
+        cobyla = 'cobyla_ansatzes.csv'
+        spsa = 'spsa_ansatzes.csv'
+        cob_data = pd.read_csv('../results/optimizer_data/'+cobyla)
+        spsa_data = pd.read_csv('../results/optimizer_data/'+spsa)
+
+        # bothcreted using 1 shot
+        # Relevant columns
+        cols = ['num_qubits','vqe_time','iterations','num_parameters']
+
+        cob_data = cob_data[cols]
+        spsa_data = spsa_data[cols]
+
+        spsa_iters = list(spsa_data['iterations'].values)
+
+      
+
+        spsa_times = [time/iter for time,iter in zip(spsa_data['vqe_time'],spsa_iters)]
+
+        # Set the figure size
+        plt.title('Comparison of optimizes for single iteration')
+        plt.figure(figsize=figsize)
+        plt.scatter(list(cob_data['num_parameters'].values),list(cob_data['vqe_time'].values),marker = JW_shape,label='COBYLA')
+        plt.scatter(list(spsa_data['num_parameters'].values),spsa_times,marker=BK_shape,label='SPSA')
+
+        plt.xlabel('Number of parameters',fontsize=axis_font)
+        plt.ylabel('Time [s]',fontsize=axis_font)
+        plt.legend(loc='upper left')
+        plt.show()
+        plt.savefig('../results/optimizer_data/optimizers_ansatzes.'+format, format=format, dpi=400)
+
+
+# Number of observables to measure
+    if (False):
+
+        # read in all the files fro ../hamiltonians/*txt
+        files = os.listdir('../hamiltonians/')
+        num_qubits = []
+        num_groups = []
+        num_paulis = []    
+        # read the hamiltonian from eac hfile 
+        plt.figure(figsize=figsize)
+    
+        for file in files:
+            hamiltonian  = retrieve_ham('../hamiltonians/'+file) 
+            num_qubits.append(len(hamiltonian.paulis[0]))
+            num_groups.append(len(hamiltonian.group_commuting(qubit_wise=True)))
+            num_paulis.append(len(hamiltonian.paulis))
+
+
+        plt.scatter(num_qubits,num_groups,marker='X',label='QWC')
+        plt.scatter(num_qubits,num_paulis,marker=PR_shape,label='Pauli scheme')
+        plt.xlabel('Number of qubits',fontsize=axis_font)
+        plt.ylabel('Number of observables to measure',fontsize=axis_font)
+        plt.legend(loc='upper left')
+        plt.show()
+        plt.savefig('../results/meas_schemes/number_observable.'+format, format=format, dpi=400)
+
+# Lih runs for both opimizers
+    if (True):
+        
+        cob_files = ['LiH_cobyla_run_1.csv','LiH_cobyla_run_2.csv','LiH_cobyla_run_3.csv','LiH_cobyla_run_4.csv']
+        spsa_files = ['LiH_spsa_run_1.csv','LiH_spsa_run_2.csv','LiH_spsa_run_3.csv','LiH_spsa_run_4.csv']
+
+        columns = ['iterations','vqe_time','exact_solution','vqe_energies']
+
+        exact_solution = pd.read_csv('../results/optimizer_data/LiH_cobyla_run_1.csv')['exact_solution'].values[0]
+        cob_times = []
+        spsa_times = []
+
+        
+        # Plot the cobyla data
+        plt.figure(figsize=figsize)
+        plt.title('VQE for LiH with COBYLA and SPSA ',fontsize=title_font)
+        plt.axhline(y=exact_solution, color='k', linestyle='--', label='Exact solution')
+        i = 0
+        for file in cob_files:
+            data = pd.read_csv('../results/optimizer_data/'+file)
+            data = data[columns]
+            cob_times.append(data['vqe_time'].values[0])
+        
+            if (i==0):
+                plt.plot(eval(data['vqe_energies'].values[0]),color= BK_color,label='cobyla')
+                i+=1
+            else:
+                plt.plot(eval(data['vqe_energies'].values[0]), color =BK_color)
+        i=0
+        for file in spsa_files:
+            data = pd.read_csv('../results/optimizer_data/'+file)
+            data = data[columns]
+            spsa_times.append(data['vqe_time'].values[0])
+
+            if (i==0):
+                plt.plot(eval(data['vqe_energies'].values[0]),color=JW_color,label='spsa')
+                i+=1
+            else:
+                plt.plot(eval(data['vqe_energies'].values[0]), color = JW_color)
+
+        plt.xlabel('Iterations',fontsize=axis_font)
+        plt.ylabel('Energy [Ha]',fontsize=axis_font)
+        plt.legend(loc='upper right')
+        plt.show()
+        plt.savefig('../results/optimizer_data/LiH_optimizers.'+format, format=format, dpi=400)
+
+        print('Avg cob time:',np.mean(cob_times))
+        print('Avg spsa time:',np.mean(spsa_times))

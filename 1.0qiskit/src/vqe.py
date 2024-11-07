@@ -27,6 +27,7 @@ from qiskit.converters import circuit_to_dag, dag_to_circuit
 
 # SciPy minimizer routine
 from scipy.optimize import minimize
+import spsa
 
 
 # imort NUmpy algorithm to solve minumun energy exactly
@@ -81,6 +82,11 @@ default_ansatz_reps = [2]
 
 
 ansatz_reps = [1,2,3]
+
+
+optimizer = 'cobyla'
+max_iter = 200
+shots = 1024
 
 #############################################################
 
@@ -461,34 +467,7 @@ def build_ansatz(ansatz_name,mapper,num_qubits: int,num_particles: tuple[int,int
     #return hf_state.compose(ansatz)
     return ansatz
 
-def cost_func(params, ansatz, hamiltonian, estimator,cost_history_dict,shots):
-    """Return estimate of energy from estimator
 
-    Parameters:
-        params (ndarray): Array of ansatz parameters
-        ansatz (QuantumCircuit): Parameterized ansatz circuit
-        hamiltonian (SparsePauliOp): Operator representation of Hamiltonian
-        estimator (EstimatorV2): Estimator primitive instance
-        cost_history_dict: Dictionary for storing intermediate results
-
-    Returns:
-        float: Energy estimate
-    """
-    pub = (ansatz, [hamiltonian], [params])
-    result = estimator.run(ansatz,hamiltonian,params,shots=shots).result()
-    energy = result.values[0]
-    vars = result.metadata[0]['variance']
-    acc = accuracy(weights=hamiltonian.coeffs,variances=vars,shots=shots)
-
-
-    cost_history_dict["iters"] += 1
-    cost_history_dict["prev_vector"] = params
-    cost_history_dict["cost_history"].append(energy)
-    cost_history_dict["vectors"].append(params.tolist())
-    cost_history_dict["vqe_acc"].append(acc)
-    #print(f"Iters. done: {cost_history_dict['iters']} [Current cost: {energy}]")
-
-    return energy
     #optimize the ansatz for backend
 
 def vqe(num_qubits,ansatz,hamiltonian,grouping,shots=1_000):
@@ -543,17 +522,56 @@ def vqe(num_qubits,ansatz,hamiltonian,grouping,shots=1_000):
     estimator = BackendEstimator(backend,abelian_grouping=grouping)
     #estimator.options.default_shots = shots
     # set the maximum number of iterations
-    options = {'maxiter': 100}
+    options = {'maxiter': max_iter}
+
+    def cost_func(params):
+        """Return estimate of energy from estimator
+
+        Parameters:
+        params (ndarray): Array of ansatz parameters
+        ansatz (QuantumCircuit): Parameterized ansatz circuit
+        hamiltonian (SparsePauliOp): Operator representation of Hamiltonian
+        estimator (EstimatorV2): Estimator primitive instance
+        cost_history_dict: Dictionary for storing intermediate results
+
+        Returns:
+            float: Energy estimate
+            """
+        pub = (ansatz, [hamiltonian], [params])
+        result = estimator.run(ansatz,hamiltonian,params,shots=shots).result()
+        energy = result.values[0]
+        vars = result.metadata[0]['variance']
+        acc = accuracy(weights=hamiltonian.coeffs,variances=vars,shots=shots)
 
 
-    res = minimize(
-        cost_func,
-        x0,
-        args=(ansatz_isa, hamiltonian_isa, estimator,cost_history_dict,shots),
-        method="cobyla",
-        options=options,
-    )
+        cost_history_dict["iters"] += 1
+        cost_history_dict["prev_vector"] = params
+        cost_history_dict["cost_history"].append(energy)
+        cost_history_dict["vectors"].append(params.tolist())
+        cost_history_dict["vqe_acc"].append(acc)
+        #print(f"Iters. done: {cost_history_dict['iters']} [Current cost: {energy}]")
 
+        return energy
+
+
+    # Perform the minimaxation routine
+    # COBYLA
+    if optimizer == 'cobyla':
+        res = minimize(
+            cost_func,
+            x0,
+            method='cobyla',
+            options=options,
+        )
+
+    # SPSA
+    else:
+        res = spsa.minimize(
+            cost_func,
+            x0,
+            iterations=max_iter,
+            )
+    print(cost_history_dict['iters'])
 
     return cost_history_dict
 
@@ -791,7 +809,7 @@ if __name__=='__main__':
     # Iterate over all different parameters and store the results in the DataFrame named data
     for molecule in molecules:
         #for reps in ansatz_reps:
-        for reps in [1]:
+        for reps in [2]:
             for z2sym in Z2Symmetries_list:
                 for map in mappers:
                     for ansatz in ansatzes:
@@ -840,7 +858,7 @@ if __name__=='__main__':
 
                             print('Preparation done!')
 
-                            if True:
+                            if False:
                                 #if molecule=='NH3' or molecule=='C2H4':
                                 #    shot = 10_000#,2000]#,5000,10_000,20_000,30_000,40_000,60_000,80_000,100_000]
                                 #    vars = variance(hamiltonian,shot,ansatz_circuit)
@@ -867,7 +885,7 @@ if __name__=='__main__':
                                     else:
                                         grouping = True
                                     start = time.time()
-                                    vqe_results = vqe(num_qubits,ansatz_circuit,hamiltonian,grouping)
+                                    vqe_results = vqe(num_qubits,ansatz_circuit,hamiltonian,grouping,shots=shots)
                                     vqe_time_cost = time.time() - start
                         
                                 vqe_energies = vqe_results['cost_history']
