@@ -6,4 +6,4 @@ pip install -r requirements.txt
 
 To run the program use 
 
-python variational-quantum-eigensolver.py *options
+python vqe.py *options
