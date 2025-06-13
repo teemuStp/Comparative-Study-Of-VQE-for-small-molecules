@@ -1,6 +1,6 @@
 This repository contains codes for my Master's thesis
 
-to insatll all required Python dependencies use
+to install all required Python dependencies use
 
 pip install -r requirements.txt
 
