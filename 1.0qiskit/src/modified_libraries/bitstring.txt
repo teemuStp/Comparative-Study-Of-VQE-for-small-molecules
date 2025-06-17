@@ -1,0 +1,3 @@
+Fermionic Operator
+number spin orbitals=4, number terms=1
+  1.0 * ( +_0 +_2 )
