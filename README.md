@@ -1,4 +1,4 @@
-This repository contains codes for my Master's thesis
+This repository contains codes for my Master's thesis and more streamline d code compared to "Main" branch. 
 
 to install all required Python dependencies use
 
