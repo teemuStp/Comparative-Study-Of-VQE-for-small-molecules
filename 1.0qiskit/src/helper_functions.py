@@ -638,3 +638,28 @@ def save_hamiltonian(hamiltonian,filename):
             file.write(str(hamiltonian.coeffs[i]) + ' * ' + str(hamiltonian.paulis[i]) + '\n')
         file.close()
     return ''
+
+def apply_observable(circuit,observable):
+    """Applies the given observable to the circuit
+    
+    Args: circuit: (QuantumCircuit) the circuit to apply the observable to
+          observable: (SparsePauliOp) the observable to apply
+    Returns: circuit: (QuantumCircuit) the circuit with the observable applied"""
+    
+    # Get the list of Pauli operators
+    paulis = str(observable)
+    qubit = 0
+    # Apply each Pauli operator to the circuit
+    for pauli in paulis:
+    
+        if pauli == 'X':
+            circuit.h(qubit)
+        elif pauli == 'Y':
+            circuit.sdg(qubit)
+            circuit.h(qubit)
+        elif pauli == 'Z' or pauli == 'I':
+            pass
+        else:
+            raise ValueError("Wrong operator")
+        qubit +=1
+    return circuit

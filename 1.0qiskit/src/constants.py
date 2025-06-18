@@ -25,9 +25,9 @@ chemistry_molecules = {
         symbols=["N","H","H","H"],
         coords=[
         (0.888, 1.538, 1.069),     # Nitrogen
-        (0.0, 0.0, 0.0),  # First Hydrogen
-        (0.0, 3.076, 0.0),# Second Hydrogen
-        (2.664, 1.538, 0.0)# Third Hydrogen
+        (0.0, 0.0, 0.0),           # First Hydrogen
+        (0.0, 3.076, 0.0),         # Second Hydrogen
+        (2.664, 1.538, 0.0)        # Third Hydrogen
         ],
         charge=0,
         multiplicity=1,
