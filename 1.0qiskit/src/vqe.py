@@ -40,7 +40,8 @@ from qiskit.primitives import Estimator
 from qiskit_nature.second_q.formats.molecule_info import MoleculeInfo
 
 # Import the self-built functions
-import functions
+from helper_functions import *
+from constants import *
 
 #############    Define some constant methods   ############
 
@@ -52,29 +53,6 @@ arg_error_message = 'Please provide the correct number of arguments \n run_type=
 path_to_this_file = str(Path.cwd())
 
 
-# All possible implementation methods
-all_mappers = ['parity','bravyi_kitaev', 'jordan_wigner','neven']
-all_ansatzes = ['EfficientSU2','kUpCCGSD']
-all_Z2Symmetries_list = [True,False]
-all_measurement_schemes = ['pauli_scheme','QWC']
-all_anzats_reps = [1,2,3]
-# Molecule list is below the chemistry_molecues dictionary
-
-
-# Default options
-default_measurement_scheme = ['pauli_scheme']
-default_ansatz = ['EfficientSU2']
-default_mapping = ['jordan_wigner']
-default_z2 = [True]
-default_ansatz_reps = [2]
-
-
-ansatz_reps = [1,2,3]
-
-
-optimizer = 'cobyla'
-max_iter = 200
-shots = 1024
 
 #############################################################
 
@@ -239,9 +217,6 @@ if __name__=='__main__':
                             class_time_cost = time.time() - start
 
 
-                            # spaghetti code for now
-                            run_vqe = (VQE=='Y')
-
 
                             print('Preparation done!')
 
@@ -259,7 +234,7 @@ if __name__=='__main__':
                                 accuracies_shots = (None,None)
             
                             # perform the vqe calculation for the given molecule if the system is small (<10 qubits)
-                            if(run_vqe):    
+                            if((VQE=='Y')):    
 
 
                                 print('Running molecule:',molecule,'with',num_qubits,'qubits')
@@ -305,6 +280,9 @@ if __name__=='__main__':
                                 vqe_time_cost = 0.0
                                 class_time_cost = 0.0
                                 vqe_acc  = []
+                                depth = 0
+                                num_params = 0
+                                cx_gates = 0
 
             
                             # store the results in the DataFrame

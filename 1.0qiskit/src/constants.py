@@ -57,12 +57,12 @@ chemistry_molecules = {
     #    charge=0,
     #    multiplicity=1,
     #),
-    #'O3': MoleculeInfo(
-    #    symbols=["O","O","O"],
-    #    coords=[(-1.082,-0.665,0.0),(0.0,0.0,0.0),(1.082,-0.665,0.0)],
-    #    charge=1,
-    #    multiplicity=1,
-    #),
+    'O3': MoleculeInfo(
+        symbols=["O","O","O"],
+        coords=[(-1.082,-0.665,0.0),(0.0,0.0,0.0),(1.082,-0.665,0.0)],
+        charge=0,
+        multiplicity=1,
+    ),
     'O2': MoleculeInfo(
         symbols=["O","O"],
         coords=[(0.0,0.0,0.0),(0.0,0.0,1.2)],
@@ -70,3 +70,28 @@ chemistry_molecules = {
         multiplicity=1,
     )
 }
+
+# All possible implementation methods
+all_mappers = ['parity','bravyi_kitaev', 'jordan_wigner','neven']
+all_ansatzes = ['EfficientSU2','kUpCCGSD']
+all_Z2Symmetries_list = [True,False]
+all_measurement_schemes = ['pauli_scheme','QWC']
+all_anzats_reps = [1,2,3]
+all_molecule_names = chemistry_molecules.keys()
+# Molecule list is below the chemistry_molecues dictionary
+
+
+# Default options
+default_measurement_scheme = ['pauli_scheme']
+default_ansatz = ['EfficientSU2']
+default_mapping = ['jordan_wigner']
+default_z2 = [True]
+default_ansatz_reps = [2]
+
+
+ansatz_reps = [1,2,3]
+
+
+optimizer = 'cobyla'
+max_iter = 200
+shots = 1024

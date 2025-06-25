@@ -42,7 +42,7 @@ from qiskit_nature.second_q.drivers import PySCFDriver
 from qiskit_nature.second_q.transformers import FreezeCoreTransformer
 from qiskit_nature.second_q.circuit.library import HartreeFock, PUCCSD
 
-from constants import chemistry_molecules
+from constants import *
 
 
 ##### Functions for Qubit wise commuting Pauli strings ######
