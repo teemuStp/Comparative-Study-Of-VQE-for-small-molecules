@@ -195,7 +195,7 @@ def prepare_hamiltonian(
 ):  
     
 
-    """Creates the Hamiltoanin for a molecule with given mapping 
+    """Creates the Hamiltonian for a molecule with the given mapping 
     
 
     Args: molecule(MoleculeInfo object): the molecule to create the Hamiltonian for
